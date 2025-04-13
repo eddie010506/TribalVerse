@@ -13,6 +13,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities'>>): Promise<User | undefined>;
   
   // Chat room methods
   getChatRooms(): Promise<ChatRoom[]>;
@@ -57,6 +58,23 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+
+  async updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities'>>): Promise<User | undefined> {
+    // Check if user exists first
+    const existingUser = await this.getUser(userId);
+    if (!existingUser) {
+      return undefined;
+    }
+
+    // Update user profile
+    const [updatedUser] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return updatedUser;
   }
 
   // Chat room methods

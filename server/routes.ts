@@ -8,6 +8,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { insertChatRoomSchema, insertMessageSchema } from "@shared/schema";
+import { z } from "zod";
 
 // Configure multer for image uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -53,6 +54,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Serve uploaded files
   app.use('/uploads', express.static(uploadDir));
+
+  // User profile API
+  app.get("/api/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Filter out the password for security
+      const { password, ...userProfile } = user;
+      res.json(userProfile);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user profile" });
+    }
+  });
+
+  // Update user profile
+  app.patch("/api/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Validate incoming data
+      const profileSchema = z.object({
+        hobbies: z.string().optional(),
+        interests: z.string().optional(),
+        currentActivities: z.string().optional(),
+      });
+      
+      const validatedData = profileSchema.parse(req.body);
+      const updatedUser = await storage.updateUserProfile(userId, validatedData);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Filter out the password for security
+      const { password, ...userProfile } = updatedUser;
+      res.json(userProfile);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid profile data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update user profile" });
+    }
+  });
 
   // Chat rooms API
   app.get("/api/rooms", isAuthenticated, async (req, res) => {
