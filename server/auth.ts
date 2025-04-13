@@ -6,6 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import { sendVerificationEmail } from "./email";
 
 declare global {
   namespace Express {
@@ -76,13 +77,41 @@ export function setupAuth(app: Express) {
         return res.status(400).send("Username already exists");
       }
 
+      // Check if email is already in use
+      if (req.body.email) {
+        const existingEmail = await storage.getUserByEmail(req.body.email);
+        if (existingEmail) {
+          return res.status(400).send("Email is already in use");
+        }
+      }
+
+      // Create a verification token if email is provided
+      let verificationToken = null;
+      if (req.body.email) {
+        verificationToken = randomBytes(32).toString('hex');
+      }
+
       const user = await storage.createUser({
         ...req.body,
         password: await hashPassword(req.body.password),
+        verificationToken
       });
 
+      // Send verification email if email was provided
+      if (req.body.email && verificationToken) {
+        await sendVerificationEmail(
+          req.body.email, 
+          req.body.username, 
+          verificationToken
+        );
+      }
+
       // Don't return the password hash
-      const userWithoutPassword = { id: user.id, username: user.username };
+      const userWithoutPassword = { 
+        id: user.id, 
+        username: user.username,
+        emailVerified: user.emailVerified
+      };
 
       req.login(user, (err) => {
         if (err) return next(err);

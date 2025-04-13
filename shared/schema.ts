@@ -8,6 +8,9 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email"),
+  emailVerified: boolean("email_verified").default(false),
+  verificationToken: text("verification_token"),
   hobbies: text("hobbies"),
   interests: text("interests"),
   currentActivities: text("current_activities"),
@@ -16,6 +19,7 @@ export const users = pgTable("users", {
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
+  email: true,
   hobbies: true,
   interests: true,
   currentActivities: true,

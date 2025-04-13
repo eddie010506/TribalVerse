@@ -12,8 +12,11 @@ export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities'>>): Promise<User | undefined>;
+  setVerificationToken(userId: number, token: string): Promise<boolean>;
+  verifyEmail(token: string): Promise<User | undefined>;
   
   // Chat room methods
   getChatRooms(): Promise<ChatRoom[]>;
@@ -51,6 +54,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.username, username));
     return user;
   }
+  
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email));
+    return user;
+  }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db
@@ -58,6 +69,43 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+  
+  async setVerificationToken(userId: number, token: string): Promise<boolean> {
+    try {
+      await db
+        .update(users)
+        .set({ verificationToken: token })
+        .where(eq(users.id, userId));
+      return true;
+    } catch (error) {
+      console.error("Error setting verification token:", error);
+      return false;
+    }
+  }
+  
+  async verifyEmail(token: string): Promise<User | undefined> {
+    // Find user by token
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.verificationToken, token));
+    
+    if (!user) {
+      return undefined;
+    }
+    
+    // Update user to verified status
+    const [updatedUser] = await db
+      .update(users)
+      .set({ 
+        emailVerified: true,
+        verificationToken: null 
+      })
+      .where(eq(users.id, user.id))
+      .returning();
+      
+    return updatedUser;
   }
 
   async updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities'>>): Promise<User | undefined> {
