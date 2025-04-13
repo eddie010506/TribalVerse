@@ -48,6 +48,22 @@ const isAuthenticated = (req: Request, res: Response, next: Function) => {
   res.status(401).json({ message: "Unauthorized" });
 };
 
+// Email verification middleware
+const isEmailVerified = (req: Request, res: Response, next: Function) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  
+  if (!req.user.emailVerified) {
+    return res.status(403).json({ 
+      message: "Email verification required",
+      requiresVerification: true
+    });
+  }
+  
+  next();
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
@@ -112,7 +128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/rooms", isAuthenticated, async (req, res) => {
+  app.post("/api/rooms", isAuthenticated, isEmailVerified, async (req, res) => {
     try {
       const validatedData = insertChatRoomSchema.parse({
         ...req.body,
@@ -159,7 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/upload", isAuthenticated, upload.single('image'), (req, res) => {
+  app.post("/api/upload", isAuthenticated, isEmailVerified, upload.single('image'), (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
@@ -203,6 +219,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               
               try {
+                // Check if the user's email is verified before allowing messages
+                const user = await storage.getUser(clientInfo.userId);
+                if (!user || !user.emailVerified) {
+                  ws.send(JSON.stringify({ 
+                    type: 'error', 
+                    error: 'email_verification_required',
+                    message: 'Email verification required to send messages' 
+                  }));
+                  return;
+                }
+                
                 const validatedData = insertMessageSchema.parse({
                   content: data.content,
                   imageUrl: data.imageUrl || null,

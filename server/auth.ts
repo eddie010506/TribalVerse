@@ -135,11 +135,96 @@ export function setupAuth(app: Express) {
     });
   });
 
+  // Email verification endpoint
+  app.get("/api/verify-email", async (req, res) => {
+    const { token } = req.query;
+    
+    if (!token || typeof token !== 'string') {
+      return res.status(400).send("Invalid verification token");
+    }
+    
+    try {
+      const user = await storage.verifyEmail(token);
+      
+      if (!user) {
+        return res.status(400).send("Invalid or expired verification token");
+      }
+      
+      // If user is logged in, update their session
+      if (req.isAuthenticated() && req.user.id === user.id) {
+        req.login(user, (err) => {
+          if (err) {
+            console.error("Error updating user session:", err);
+          }
+        });
+      }
+      
+      // Redirect to a success page or profile
+      res.redirect('/profile?verified=true');
+    } catch (error) {
+      console.error("Error verifying email:", error);
+      res.status(500).send("Error verifying email");
+    }
+  });
+  
+  // Send verification email for logged-in user
+  app.post("/api/send-verification-email", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.sendStatus(401);
+    }
+    
+    const user = req.user as SelectUser;
+    
+    if (user.emailVerified) {
+      return res.status(400).send("Email is already verified");
+    }
+    
+    if (!user.email) {
+      return res.status(400).send("No email address associated with this account");
+    }
+    
+    try {
+      // Generate a new token
+      const verificationToken = randomBytes(32).toString('hex');
+      
+      // Update the user's verification token
+      const success = await storage.setVerificationToken(user.id, verificationToken);
+      
+      if (!success) {
+        return res.status(500).send("Error generating verification token");
+      }
+      
+      // Send the verification email
+      const emailSent = await sendVerificationEmail(
+        user.email,
+        user.username,
+        verificationToken
+      );
+      
+      if (!emailSent) {
+        return res.status(500).send("Error sending verification email");
+      }
+      
+      res.status(200).send("Verification email sent");
+    } catch (error) {
+      console.error("Error sending verification email:", error);
+      res.status(500).send("Error sending verification email");
+    }
+  });
+
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     
-    // Don't return the password hash
-    const { id, username } = req.user as SelectUser;
-    res.json({ id, username });
+    // Don't return the password hash but include email and verification status
+    const { id, username, email, emailVerified, hobbies, interests, currentActivities } = req.user as SelectUser;
+    res.json({ 
+      id, 
+      username, 
+      email, 
+      emailVerified, 
+      hobbies, 
+      interests, 
+      currentActivities 
+    });
   });
 }

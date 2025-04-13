@@ -15,6 +15,8 @@ import { useLocation } from "wouter";
 interface ProfileData {
   id: number;
   username: string;
+  email: string | null;
+  emailVerified: boolean;
   hobbies: string | null;
   interests: string | null;
   currentActivities: string | null;
@@ -33,6 +35,8 @@ export default function ProfilePage() {
   const [hobbies, setHobbies] = useState("");
   const [interests, setInterests] = useState("");
   const [currentActivities, setCurrentActivities] = useState("");
+  const [email, setEmail] = useState("");
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
 
   // Query to fetch profile data
   const {
