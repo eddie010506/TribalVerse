@@ -5,7 +5,7 @@ import type {
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, count } from "drizzle-orm";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 
@@ -17,7 +17,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities'>>): Promise<User | undefined>;
+  updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities' | 'profilePicture'>>): Promise<User | undefined>;
   setVerificationToken(userId: number, token: string): Promise<boolean>;
   verifyEmail(token: string): Promise<User | undefined>;
   
@@ -29,6 +29,27 @@ export interface IStorage {
   // Message methods
   getMessagesByRoomId(roomId: number): Promise<MessageWithUser[]>;
   createMessage(message: InsertMessage): Promise<Message>;
+  
+  // Friend request methods
+  getFriendRequests(userId: number): Promise<FriendRequest[]>;
+  getSentFriendRequests(userId: number): Promise<FriendRequest[]>;
+  getReceivedFriendRequests(userId: number): Promise<FriendRequest[]>;
+  createFriendRequest(request: InsertFriendRequest): Promise<FriendRequest>;
+  respondToFriendRequest(requestId: number, status: 'accepted' | 'rejected'): Promise<FriendRequest | undefined>;
+  
+  // Follow methods
+  getFollowers(userId: number): Promise<Partial<User>[]>;
+  getFollowing(userId: number): Promise<Partial<User>[]>;
+  followUser(followerId: number, followingId: number): Promise<Follow | undefined>;
+  unfollowUser(followerId: number, followingId: number): Promise<boolean>;
+  isFollowing(followerId: number, followingId: number): Promise<boolean>;
+  
+  // Notification methods
+  getNotifications(userId: number): Promise<Notification[]>;
+  getUnreadNotificationCount(userId: number): Promise<number>;
+  markNotificationAsRead(notificationId: number): Promise<boolean>;
+  markAllNotificationsAsRead(userId: number): Promise<boolean>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
   
   // Session store
   sessionStore: any;
@@ -111,7 +132,7 @@ export class DatabaseStorage implements IStorage {
     return updatedUser;
   }
 
-  async updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities' | 'email' | 'emailVerified' | 'verificationToken'>>): Promise<User | undefined> {
+  async updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities' | 'email' | 'emailVerified' | 'verificationToken' | 'profilePicture'>>): Promise<User | undefined> {
     // Check if user exists first
     const existingUser = await this.getUser(userId);
     if (!existingUser) {
@@ -185,6 +206,257 @@ export class DatabaseStorage implements IStorage {
       .values(insertMessage)
       .returning();
     return message;
+  }
+
+  // Friend request methods
+  async getFriendRequests(userId: number): Promise<FriendRequest[]> {
+    const sentRequests = await this.getSentFriendRequests(userId);
+    const receivedRequests = await this.getReceivedFriendRequests(userId);
+    return [...sentRequests, ...receivedRequests];
+  }
+
+  async getSentFriendRequests(userId: number): Promise<FriendRequest[]> {
+    return await db
+      .select()
+      .from(friendRequests)
+      .where(eq(friendRequests.senderId, userId));
+  }
+
+  async getReceivedFriendRequests(userId: number): Promise<FriendRequest[]> {
+    return await db
+      .select()
+      .from(friendRequests)
+      .where(eq(friendRequests.receiverId, userId));
+  }
+
+  async createFriendRequest(request: InsertFriendRequest): Promise<FriendRequest> {
+    // Check if request already exists
+    const existingRequests = await db
+      .select()
+      .from(friendRequests)
+      .where(eq(friendRequests.senderId, request.senderId));
+      
+    const existingRequest = existingRequests.find(r => r.receiverId === request.receiverId);
+    if (existingRequest) {
+      return existingRequest;
+    }
+
+    const [newRequest] = await db
+      .insert(friendRequests)
+      .values(request)
+      .returning();
+    
+    // Create notification for the receiver
+    const userResults = await db
+      .select({ id: users.id, username: users.username })
+      .from(users)
+      .where(eq(users.id, request.senderId));
+    
+    const sender = userResults[0];
+    if (sender) {
+      await this.createNotification({
+        userId: request.receiverId,
+        type: 'friend_request',
+        actorId: request.senderId,
+        entityId: newRequest.id,
+        entityType: 'friend_request',
+        message: `${sender.username} sent you a friend request.`,
+      });
+    }
+    
+    return newRequest;
+  }
+
+  async respondToFriendRequest(requestId: number, status: 'accepted' | 'rejected'): Promise<FriendRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(friendRequests)
+      .where(eq(friendRequests.id, requestId));
+
+    if (!request) {
+      return undefined;
+    }
+
+    const [updatedRequest] = await db
+      .update(friendRequests)
+      .set({ 
+        status,
+        updatedAt: new Date(),
+      })
+      .where(eq(friendRequests.id, requestId))
+      .returning();
+    
+    // Create notification for the sender
+    const [receiver] = await db
+      .select({ id: users.id, username: users.username })
+      .from(users)
+      .where(eq(users.id, request.receiverId));
+    
+    if (receiver) {
+      await this.createNotification({
+        userId: request.senderId,
+        type: 'friend_request_response',
+        actorId: request.receiverId,
+        entityId: requestId,
+        entityType: 'friend_request',
+        message: `${receiver.username} ${status} your friend request.`,
+      });
+    }
+    
+    return updatedRequest;
+  }
+
+  // Follow methods
+  async getFollowers(userId: number): Promise<User[]> {
+    const result = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        profilePicture: users.profilePicture,
+        email: users.email,
+        emailVerified: users.emailVerified,
+      })
+      .from(follows)
+      .innerJoin(users, eq(follows.followerId, users.id))
+      .where(eq(follows.followingId, userId));
+    
+    return result;
+  }
+
+  async getFollowing(userId: number): Promise<User[]> {
+    const result = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        profilePicture: users.profilePicture,
+        email: users.email,
+        emailVerified: users.emailVerified,
+      })
+      .from(follows)
+      .innerJoin(users, eq(follows.followingId, users.id))
+      .where(eq(follows.followerId, userId));
+    
+    return result;
+  }
+
+  async followUser(followerId: number, followingId: number): Promise<Follow | undefined> {
+    // Don't allow following yourself
+    if (followerId === followingId) {
+      return undefined;
+    }
+
+    // Check if already following
+    const isAlreadyFollowing = await this.isFollowing(followerId, followingId);
+    if (isAlreadyFollowing) {
+      return undefined;
+    }
+
+    const [follow] = await db
+      .insert(follows)
+      .values({
+        followerId,
+        followingId,
+      })
+      .returning();
+    
+    // Create notification for the followed user
+    const [follower] = await db
+      .select({ id: users.id, username: users.username })
+      .from(users)
+      .where(eq(users.id, followerId));
+    
+    if (follower) {
+      await this.createNotification({
+        userId: followingId,
+        type: 'follow',
+        actorId: followerId,
+        entityId: followerId,
+        entityType: 'user',
+        message: `${follower.username} started following you.`,
+      });
+    }
+    
+    return follow;
+  }
+
+  async unfollowUser(followerId: number, followingId: number): Promise<boolean> {
+    try {
+      await db
+        .delete(follows)
+        .where(eq(follows.followerId, followerId))
+        .where(eq(follows.followingId, followingId));
+      
+      return true;
+    } catch (error) {
+      console.error("Error unfollowing user:", error);
+      return false;
+    }
+  }
+
+  async isFollowing(followerId: number, followingId: number): Promise<boolean> {
+    const [follow] = await db
+      .select()
+      .from(follows)
+      .where(eq(follows.followerId, followerId))
+      .where(eq(follows.followingId, followingId));
+    
+    return !!follow;
+  }
+
+  // Notification methods
+  async getNotifications(userId: number): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async getUnreadNotificationCount(userId: number): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .where(eq(notifications.isRead, false));
+
+    return result[0]?.count || 0;
+  }
+
+  async markNotificationAsRead(notificationId: number): Promise<boolean> {
+    try {
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.id, notificationId));
+      
+      return true;
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      return false;
+    }
+  }
+
+  async markAllNotificationsAsRead(userId: number): Promise<boolean> {
+    try {
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.userId, userId));
+      
+      return true;
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      return false;
+    }
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db
+      .insert(notifications)
+      .values(notification)
+      .returning();
+    
+    return newNotification;
   }
 }
 
