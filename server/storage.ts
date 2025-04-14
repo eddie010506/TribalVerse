@@ -1,5 +1,8 @@
-import { users, chatRooms, messages } from "@shared/schema";
-import type { User, InsertUser, ChatRoom, InsertChatRoom, Message, InsertMessage, MessageWithUser } from "@shared/schema";
+import { users, chatRooms, messages, follows, friendRequests, notifications } from "@shared/schema";
+import type { 
+  User, InsertUser, ChatRoom, InsertChatRoom, Message, InsertMessage, MessageWithUser,
+  Follow, InsertFollow, FriendRequest, InsertFriendRequest, Notification, InsertNotification
+} from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
