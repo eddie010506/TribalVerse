@@ -38,8 +38,15 @@ const loginSchema = insertUserSchema.pick({
 const registerSchema = insertUserSchema.pick({
   username: true,
   password: true,
+  email: true,
 }).extend({
   confirmPassword: z.string(),
+  email: z.string()
+    .email("Invalid email address")
+    .refine(email => email.toLowerCase().endsWith('.edu'), {
+      message: "Only .edu email addresses are allowed"
+    })
+    .optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -65,6 +72,7 @@ export default function AuthPage() {
       username: "",
       password: "",
       confirmPassword: "",
+      email: "",
     },
   });
 
@@ -252,6 +260,27 @@ export default function AuthPage() {
                                 <Input type="password" placeholder="Confirm your password" {...field} />
                               </FormControl>
                               <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={registerForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email Address (Optional)</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="email" 
+                                  placeholder="Enter your .edu email address" 
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                              <p className="text-xs text-amber-600 mt-1">
+                                Only educational (.edu) email addresses are allowed. Email verification is required to create rooms and post messages.
+                              </p>
                             </FormItem>
                           )}
                         />

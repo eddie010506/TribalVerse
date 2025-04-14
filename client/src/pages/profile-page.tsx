@@ -284,13 +284,13 @@ export default function ProfilePage() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="Enter your email address"
+                      placeholder="Enter your .edu email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
                     <Button 
                       onClick={handleSaveEmail}
-                      disabled={!email || updateEmailMutation.isPending}
+                      disabled={!email || !email.toLowerCase().endsWith('.edu') || updateEmailMutation.isPending}
                     >
                       {updateEmailMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -303,9 +303,14 @@ export default function ProfilePage() {
                     </Button>
                   </div>
                 </div>
-                <p className="text-sm text-gray-500">
-                  We'll send a verification email to this address.
-                </p>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-500">
+                    We'll send a verification email to this address.
+                  </p>
+                  <p className="text-sm font-medium text-amber-600">
+                    Only educational (.edu) email addresses are allowed.
+                  </p>
+                </div>
               </div>
             )}
             

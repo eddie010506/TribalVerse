@@ -77,8 +77,13 @@ export function setupAuth(app: Express) {
         return res.status(400).send("Username already exists");
       }
 
-      // Check if email is already in use
+      // Check if email is already in use and if it's an .edu email
       if (req.body.email) {
+        // Validate that it's an .edu email
+        if (!req.body.email.toLowerCase().endsWith('.edu')) {
+          return res.status(400).send("Only .edu email addresses are allowed");
+        }
+        
         const existingEmail = await storage.getUserByEmail(req.body.email);
         if (existingEmail) {
           return res.status(400).send("Email is already in use");

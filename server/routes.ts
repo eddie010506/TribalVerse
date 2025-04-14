@@ -127,7 +127,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Validate incoming data
       const emailSchema = z.object({
-        email: z.string().email("Invalid email address"),
+        email: z.string()
+          .email("Invalid email address")
+          .refine(email => email.toLowerCase().endsWith('.edu'), {
+            message: "Only .edu email addresses are allowed"
+          }),
       });
       
       const { email } = emailSchema.parse(req.body);

@@ -1,17 +1,25 @@
-import Mailjet from 'node-mailjet';
+// ESM Workaround for mailjet
+import pkg from 'node-mailjet';
+const mailjetConnect = pkg.connect;
 
 // Check if Mailjet keys are available
 if (!process.env.MJ_APIKEY_PUBLIC || !process.env.MJ_APIKEY_PRIVATE) {
   console.warn('Warning: Mailjet API keys (MJ_APIKEY_PUBLIC and MJ_APIKEY_PRIVATE) environment variables are not set. Email functionality will not work.');
 }
 
-// Initialize Mailjet if API keys are available
-let mailjet: Mailjet.Client | null = null;
+// Initialize Mailjet client
+let mailjet: any = null;
+
+// Only initialize if keys are available
 if (process.env.MJ_APIKEY_PUBLIC && process.env.MJ_APIKEY_PRIVATE) {
-  mailjet = Mailjet.apiConnect(
-    process.env.MJ_APIKEY_PUBLIC,
-    process.env.MJ_APIKEY_PRIVATE
-  );
+  try {
+    mailjet = mailjetConnect(
+      process.env.MJ_APIKEY_PUBLIC,
+      process.env.MJ_APIKEY_PRIVATE
+    );
+  } catch (error) {
+    console.error('Error initializing Mailjet client:', error);
+  }
 }
 
 export interface EmailOptions {
@@ -26,7 +34,7 @@ export interface EmailOptions {
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   if (!mailjet) {
-    console.error('Cannot send email: Mailjet API keys are not set');
+    console.error('Cannot send email: Mailjet client not initialized');
     return false;
   }
 
@@ -34,23 +42,31 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     const senderEmail = process.env.EMAIL_FROM || 'noreply@chatterbox.com';
     const senderName = 'ChatterBox';
     
-    const request = await mailjet.post('send', { version: 'v3.1' }).request({
-      Messages: [
-        {
-          From: {
-            Email: senderEmail,
-            Name: senderName
-          },
-          To: [
+    // Use the v3.1 API format with older client
+    const response = await new Promise((resolve, reject) => {
+      const request = mailjet
+        .post('send', { version: 'v3.1' })
+        .request({
+          Messages: [
             {
-              Email: options.to,
+              From: {
+                Email: senderEmail,
+                Name: senderName
+              },
+              To: [
+                {
+                  Email: options.to
+                }
+              ],
+              Subject: options.subject,
+              TextPart: options.text,
+              HTMLPart: options.html
             }
-          ],
-          Subject: options.subject,
-          TextPart: options.text,
-          HTMLPart: options.html
-        }
-      ]
+          ]
+        }, (err: any, result: any) => {
+          if (err) reject(err);
+          else resolve(result);
+        });
     });
     
     console.log(`Email sent to ${options.to}`);
