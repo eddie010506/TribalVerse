@@ -9,6 +9,8 @@ import path from "path";
 import fs from "fs";
 import { insertChatRoomSchema, insertMessageSchema } from "@shared/schema";
 import { z } from "zod";
+import { randomBytes } from "crypto";
+import { sendVerificationEmail } from "./email";
 
 // Configure multer for image uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -115,6 +117,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid profile data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to update user profile" });
+    }
+  });
+  
+  // Update user email
+  app.patch("/api/profile/email", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Validate incoming data
+      const emailSchema = z.object({
+        email: z.string().email("Invalid email address"),
+      });
+      
+      const { email } = emailSchema.parse(req.body);
+      
+      // Check if email is already in use
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser && existingUser.id !== userId) {
+        return res.status(400).json({ message: "Email is already in use" });
+      }
+      
+      // Generate a verification token
+      const verificationToken = randomBytes(32).toString('hex');
+      
+      // Update user with new email and token
+      const updatedUser = await storage.updateUserProfile(userId, {
+        email,
+        emailVerified: false,
+        verificationToken,
+      });
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Send verification email
+      try {
+        await sendVerificationEmail(email, updatedUser.username, verificationToken);
+      } catch (emailError) {
+        console.error("Failed to send verification email:", emailError);
+        // Continue anyway, as we've updated the user's email
+      }
+      
+      // Filter out sensitive data
+      const { password, verificationToken: token, ...userProfile } = updatedUser;
+      res.json(userProfile);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid email", errors: error.errors });
+      }
+      console.error("Failed to update email:", error);
+      res.status(500).json({ message: "Failed to update email" });
     }
   });
 
