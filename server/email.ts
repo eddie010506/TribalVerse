@@ -1,13 +1,17 @@
-import sgMail from '@sendgrid/mail';
+import Mailjet from 'node-mailjet';
 
-// Check if SENDGRID_API_KEY is available
-if (!process.env.SENDGRID_API_KEY) {
-  console.warn('Warning: SENDGRID_API_KEY environment variable is not set. Email functionality will not work.');
+// Check if Mailjet keys are available
+if (!process.env.MJ_APIKEY_PUBLIC || !process.env.MJ_APIKEY_PRIVATE) {
+  console.warn('Warning: Mailjet API keys (MJ_APIKEY_PUBLIC and MJ_APIKEY_PRIVATE) environment variables are not set. Email functionality will not work.');
 }
 
-// Initialize SendGrid if API key is available
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// Initialize Mailjet if API keys are available
+let mailjet: Mailjet.Client | null = null;
+if (process.env.MJ_APIKEY_PUBLIC && process.env.MJ_APIKEY_PRIVATE) {
+  mailjet = Mailjet.apiConnect(
+    process.env.MJ_APIKEY_PUBLIC,
+    process.env.MJ_APIKEY_PRIVATE
+  );
 }
 
 export interface EmailOptions {
@@ -18,24 +22,37 @@ export interface EmailOptions {
 }
 
 /**
- * Send an email using SendGrid
+ * Send an email using Mailjet
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
-  if (!process.env.SENDGRID_API_KEY) {
-    console.error('Cannot send email: SENDGRID_API_KEY is not set');
+  if (!mailjet) {
+    console.error('Cannot send email: Mailjet API keys are not set');
     return false;
   }
 
   try {
-    const msg = {
-      to: options.to,
-      from: process.env.EMAIL_FROM || 'noreply@chatterbox.com', // Use a configured sender or default
-      subject: options.subject,
-      text: options.text,
-      html: options.html,
-    };
-
-    await sgMail.send(msg);
+    const senderEmail = process.env.EMAIL_FROM || 'noreply@chatterbox.com';
+    const senderName = 'ChatterBox';
+    
+    const request = await mailjet.post('send', { version: 'v3.1' }).request({
+      Messages: [
+        {
+          From: {
+            Email: senderEmail,
+            Name: senderName
+          },
+          To: [
+            {
+              Email: options.to,
+            }
+          ],
+          Subject: options.subject,
+          TextPart: options.text,
+          HTMLPart: options.html
+        }
+      ]
+    });
+    
     console.log(`Email sent to ${options.to}`);
     return true;
   } catch (error) {
