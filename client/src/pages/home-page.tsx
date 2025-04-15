@@ -146,21 +146,6 @@ export default function HomePage() {
                 <AcceptedRooms />
               </CardContent>
             </Card>
-            
-            {/* Recent Posts */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center">
-                  <FileText className="h-5 w-5 mr-2 text-primary" />
-                  <CardTitle className="text-lg">Recent Posts</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <PostsProvider>
-                  <RecentPosts />
-                </PostsProvider>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </main>

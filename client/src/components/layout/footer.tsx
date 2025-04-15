@@ -1,9 +1,20 @@
+import { Separator } from "@/components/ui/separator";
+
 export function Footer() {
   return (
-    <footer className="bg-white py-4 mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center text-sm text-neutral-500">
-          <p>© {new Date().getFullYear()} ChatterBox. All rights reserved.</p>
+    <footer className="border-t py-6 md:py-0">
+      <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row">
+        <p className="text-sm text-muted-foreground">
+          &copy; {new Date().getFullYear()} Campus Chat. All rights reserved.
+        </p>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <a href="#" className="underline underline-offset-4 hover:text-foreground">
+            Terms
+          </a>
+          <Separator orientation="vertical" className="h-4" />
+          <a href="#" className="underline underline-offset-4 hover:text-foreground">
+            Privacy
+          </a>
         </div>
       </div>
     </footer>
