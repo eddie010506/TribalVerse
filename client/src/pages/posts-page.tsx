@@ -9,7 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Image, Trash2, Globe, Users, UserRound, Clock, PlusCircle } from "lucide-react";
+import { Loader2, Image, Trash2, Globe, Users, UserRound, Clock, PlusCircle, Heart, MessageCircle, Send, X } from "lucide-react";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -249,7 +249,22 @@ function CreatePostForm() {
 
 function PostCard({ post }: { post: PostWithUser }) {
   const { user } = useAuth();
-  const { deletePostMutation } = usePosts();
+  const { 
+    deletePostMutation, 
+    likePostMutation, 
+    unlikePostMutation,
+    createCommentMutation,
+    deleteCommentMutation,
+    getPostComments
+  } = usePosts();
+  
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [commentContent, setCommentContent] = useState("");
+  const [likeCount, setLikeCount] = useState(post.likeCount || 0);
+  const [isLiked, setIsLiked] = useState(post.isLikedByCurrentUser || false);
+  
   const isCurrentUserPost = user?.id === post.userId;
   
   // Format the date
@@ -262,6 +277,75 @@ function PostCard({ post }: { post: PostWithUser }) {
 
   const handleDelete = () => {
     deletePostMutation.mutate(post.id);
+  };
+  
+  const handleLike = () => {
+    if (isLiked) {
+      unlikePostMutation.mutate(post.id, {
+        onSuccess: () => {
+          setIsLiked(false);
+          setLikeCount(prev => prev - 1);
+        }
+      });
+    } else {
+      likePostMutation.mutate(post.id, {
+        onSuccess: () => {
+          setIsLiked(true);
+          setLikeCount(prev => prev + 1);
+        }
+      });
+    }
+  };
+  
+  const toggleComments = async () => {
+    setShowComments(!showComments);
+    
+    if (!showComments && comments.length === 0) {
+      setLoadingComments(true);
+      try {
+        const fetchedComments = await getPostComments(post.id);
+        setComments(fetchedComments);
+      } catch (error) {
+        console.error("Error fetching comments:", error);
+      } finally {
+        setLoadingComments(false);
+      }
+    }
+  };
+  
+  const handleAddComment = () => {
+    if (!commentContent.trim()) return;
+    
+    createCommentMutation.mutate({
+      postId: post.id,
+      content: commentContent
+    }, {
+      onSuccess: (newComment: Comment) => {
+        // Add the user data to the comment for immediate display
+        const commentWithUser = {
+          ...newComment,
+          user: {
+            id: user!.id,
+            username: user!.username,
+            profilePicture: user!.profilePicture
+          }
+        };
+        
+        setComments(prev => [...prev, commentWithUser]);
+        setCommentContent("");
+      }
+    });
+  };
+  
+  const handleDeleteComment = (commentId: number) => {
+    deleteCommentMutation.mutate({
+      commentId,
+      postId: post.id
+    }, {
+      onSuccess: () => {
+        setComments(prev => prev.filter(comment => comment.id !== commentId));
+      }
+    });
   };
 
   return (
@@ -335,6 +419,110 @@ function PostCard({ post }: { post: PostWithUser }) {
           />
         )}
       </CardContent>
+      <div className="px-6 pb-4">
+        {/* Like and Comment buttons */}
+        <div className="flex items-center space-x-6 mt-2 mb-3">
+          <Button 
+            variant="ghost" 
+            className="flex items-center space-x-1 p-0 h-auto"
+            onClick={handleLike}
+          >
+            <Heart 
+              className={`h-5 w-5 ${isLiked ? "fill-red-500 text-red-500" : "text-gray-500"}`} 
+            />
+            <span className="text-sm">{likeCount}</span>
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            className="flex items-center space-x-1 p-0 h-auto"
+            onClick={toggleComments}
+          >
+            <MessageCircle className="h-5 w-5 text-gray-500" />
+            <span className="text-sm">{comments.length || post.commentCount || 0}</span>
+          </Button>
+        </div>
+        
+        {/* Comments section */}
+        {showComments && (
+          <div className="mt-4">
+            <div className="border-t pt-4">
+              <h3 className="font-medium mb-2">Comments</h3>
+              
+              {/* Comment list */}
+              {loadingComments ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : comments.length > 0 ? (
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="flex items-start space-x-2 group">
+                      <Avatar className="h-7 w-7">
+                        <AvatarImage src={comment.user.profilePicture || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {comment.user.username.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 bg-muted p-2 rounded-md text-sm relative">
+                        <div className="font-medium text-xs">
+                          {comment.user.username}
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {format(new Date(comment.createdAt), "MMM d, 'at' h:mm a")}
+                          </span>
+                        </div>
+                        <p>{comment.content}</p>
+                        
+                        {(user?.id === comment.userId || isCurrentUserPost) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-1 top-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleDeleteComment(comment.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm py-2">No comments yet</p>
+              )}
+              
+              {/* Add comment form */}
+              <div className="mt-4 flex items-center space-x-2">
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={user?.profilePicture || undefined} />
+                  <AvatarFallback>
+                    {user?.username.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 flex items-center space-x-2">
+                  <Textarea
+                    placeholder="Add a comment..."
+                    value={commentContent}
+                    onChange={(e) => setCommentContent(e.target.value)}
+                    className="min-h-0 h-9 py-2 resize-none"
+                  />
+                  <Button 
+                    size="icon" 
+                    onClick={handleAddComment}
+                    disabled={!commentContent.trim() || createCommentMutation.isPending}
+                  >
+                    {createCommentMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </Card>
   );
 }

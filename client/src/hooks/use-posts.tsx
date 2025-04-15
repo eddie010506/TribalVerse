@@ -14,7 +14,7 @@ export interface Post {
   createdAt: string;
 }
 
-export interface Comment {
+export interface PostComment {
   id: number;
   content: string;
   userId: number;
@@ -33,7 +33,7 @@ export interface PostWithUser extends Post {
     username: string;
     profilePicture: string | null;
   };
-  comments?: Comment[];
+  comments?: PostComment[];
   commentCount?: number;
   likeCount?: number;
   isLikedByCurrentUser?: boolean;
@@ -50,7 +50,7 @@ type PostsContextType = {
   unlikePostMutation: any;
   createCommentMutation: any;
   deleteCommentMutation: any;
-  getPostComments: (postId: number) => Promise<Comment[]>;
+  getPostComments: (postId: number) => Promise<PostComment[]>;
 };
 
 type CreatePostData = {
@@ -220,7 +220,7 @@ export function PostsProvider({ children }: { children: ReactNode }) {
   });
 
   // Function to fetch comments for a specific post
-  const getPostComments = async (postId: number): Promise<Comment[]> => {
+  const getPostComments = async (postId: number): Promise<PostComment[]> => {
     try {
       const response = await fetch(`/api/posts/${postId}/comments`);
       if (!response.ok) {
