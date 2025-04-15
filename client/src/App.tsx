@@ -11,6 +11,7 @@ import ProfilePage from "@/pages/profile-page";
 import UserProfilePage from "@/pages/user-profile-page";
 import PostsPage from "@/pages/posts-page";
 import CreatePostPage from "@/pages/create-post-page";
+import AIChatPage from "@/pages/ai-chat-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RoomInvitationsProvider } from "@/hooks/use-room-invitations";
@@ -28,6 +29,7 @@ function Router() {
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/users/:id" component={UserProfilePage} />
       <ProtectedRoute path="/create-post" component={CreatePostPage} />
+      <ProtectedRoute path="/ai-chat" component={AIChatPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
