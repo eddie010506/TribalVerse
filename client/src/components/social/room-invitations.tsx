@@ -1,166 +1,155 @@
-import { useRoomInvitations } from "@/hooks/use-room-invitations";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Check, X, Loader2 } from "lucide-react";
-import { Link } from "wouter";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { useRoomInvitations } from '@/hooks/use-room-invitations';
+import { Link } from 'wouter';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { CheckCircle, XCircle } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 export function RoomInvitations() {
-  const { 
-    receivedInvitations, 
-    isLoadingReceived,
-    respondToInvitationMutation,
-  } = useRoomInvitations();
+  const { receivedInvitations, respondToInvitationMutation } = useRoomInvitations();
+  const { toast } = useToast();
+  const [respondingToId, setRespondingToId] = useState<number | null>(null);
 
-  // Handle accepting an invitation
-  const handleAccept = (invitationId: number) => {
-    respondToInvitationMutation.mutate({ 
-      invitationId, 
-      status: 'accepted' 
-    });
-  };
+  // Only show pending invitations
+  const pendingInvitations = receivedInvitations.filter(
+    invitation => invitation.status === 'pending'
+  );
 
-  // Handle declining an invitation
-  const handleDecline = (invitationId: number) => {
-    respondToInvitationMutation.mutate({ 
-      invitationId, 
-      status: 'declined' 
-    });
-  };
-
-  // Get initials for avatar fallback
-  const getInitials = (name: string) => {
-    return name.charAt(0).toUpperCase();
-  };
-
-  // Format date from string
-  const formatDate = (dateString: string) => {
+  const handleAccept = async (invitationId: number) => {
+    setRespondingToId(invitationId);
     try {
-      const date = new Date(dateString);
-      return format(date, 'MMM dd, yyyy');
+      await respondToInvitationMutation.mutateAsync({
+        invitationId,
+        status: 'accepted'
+      });
+      toast({
+        title: 'Invitation accepted',
+        description: 'You have joined the chat room!',
+      });
     } catch (error) {
-      return 'Unknown date';
+      toast({
+        title: 'Error',
+        description: 'Failed to accept invitation',
+        variant: 'destructive',
+      });
+    } finally {
+      setRespondingToId(null);
     }
   };
 
-  if (isLoadingReceived) {
-    return (
-      <div className="flex justify-center py-6">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const handleDecline = async (invitationId: number) => {
+    setRespondingToId(invitationId);
+    try {
+      await respondToInvitationMutation.mutateAsync({
+        invitationId,
+        status: 'declined'
+      });
+      toast({
+        title: 'Invitation declined',
+        description: 'The invitation has been declined',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to decline invitation',
+        variant: 'destructive',
+      });
+    } finally {
+      setRespondingToId(null);
+    }
+  };
 
-  if (receivedInvitations.length === 0) {
+  if (pendingInvitations.length === 0) {
     return (
-      <div className="text-center py-4 text-muted-foreground">
-        <p>No pending room invitations</p>
+      <div className="text-sm text-muted-foreground py-2">
+        No pending invitations
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {receivedInvitations
-        .filter(invitation => invitation.status === 'pending')
-        .map((invitation) => (
-          <Card key={invitation.id} className="overflow-hidden">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-medium">
-                  {invitation.room?.name || 'Unknown Room'}
-                </CardTitle>
-                <Badge variant="outline">Invitation</Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="pb-4 pt-0">
-              <p className="text-sm text-muted-foreground mb-2">
-                {invitation.room?.description || 'No description'}
-              </p>
-              
-              <div className="flex items-center gap-2 mb-4">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage 
-                    src={invitation.inviter?.profilePicture || undefined} 
-                    alt={invitation.inviter?.username || 'User'} 
-                  />
-                  <AvatarFallback>
-                    {getInitials(invitation.inviter?.username || 'U')}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm">
-                  <span className="font-medium">{invitation.inviter?.username}</span>
-                  {' '}invited you on {formatDate(invitation.createdAt)}
-                </span>
-              </div>
-              
-              <div className="flex justify-end gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleDecline(invitation.id)}
-                  disabled={respondToInvitationMutation.isPending}
-                >
-                  <X className="mr-1 h-4 w-4" />
-                  Decline
-                </Button>
-                <Button 
-                  size="sm"
-                  onClick={() => handleAccept(invitation.id)}
-                  disabled={respondToInvitationMutation.isPending}
-                >
-                  <Check className="mr-1 h-4 w-4" />
-                  Accept
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+    <div className="space-y-3">
+      {pendingInvitations.map(invitation => (
+        <div key={invitation.id} className="border rounded-md p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback>
+                {invitation.inviter?.username?.charAt(0) || '?'}
+              </AvatarFallback>
+              <AvatarImage 
+                src={invitation.inviter?.profilePicture || undefined} 
+                alt={invitation.inviter?.username || ''} 
+              />
+            </Avatar>
+            <span className="text-sm font-medium">
+              {invitation.inviter?.username || 'Someone'} invited you to join
+            </span>
+          </div>
+          
+          <div className="font-medium">
+            {invitation.room?.name || 'A chat room'}
+          </div>
+          
+          {invitation.room?.description && (
+            <p className="text-xs text-muted-foreground">
+              {invitation.room.description}
+            </p>
+          )}
+          
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => handleDecline(invitation.id)}
+              disabled={respondingToId === invitation.id}
+            >
+              <XCircle className="mr-1 h-4 w-4" />
+              Decline
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="h-8"
+              onClick={() => handleAccept(invitation.id)}
+              disabled={respondingToId === invitation.id}
+            >
+              <CheckCircle className="mr-1 h-4 w-4" />
+              Accept
+            </Button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
 export function AcceptedRooms() {
-  const { receivedInvitations, isLoadingReceived } = useRoomInvitations();
+  const { receivedInvitations } = useRoomInvitations();
   
+  // Only show accepted invitations
   const acceptedInvitations = receivedInvitations.filter(
     invitation => invitation.status === 'accepted'
   );
-  
-  if (isLoadingReceived) {
-    return (
-      <div className="flex justify-center py-4">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-      </div>
-    );
-  }
   
   if (acceptedInvitations.length === 0) {
     return null;
   }
   
   return (
-    <div className="mt-6">
-      <h3 className="text-sm font-medium text-muted-foreground mb-3">Recently Joined Rooms</h3>
+    <div className="mt-4 pt-4 border-t">
+      <h4 className="text-sm font-medium mb-2">Recently Joined</h4>
       <div className="space-y-2">
-        {acceptedInvitations.slice(0, 3).map((invitation) => (
-          <Card key={invitation.id} className="overflow-hidden">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-medium">{invitation.room?.name}</h4>
-                </div>
-                <Link href={`/rooms/${invitation.roomId}`}>
-                  <Button variant="secondary" size="sm">
-                    Join
-                  </Button>
-                </Link>
+        {acceptedInvitations.map(invitation => (
+          <Link key={invitation.id} href={`/room/${invitation.roomId}`}>
+            <div className="flex items-center gap-2 p-2 rounded-md hover:bg-accent cursor-pointer">
+              <div className="font-medium text-sm">
+                {invitation.room?.name || 'Chat room'}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </Link>
         ))}
       </div>
     </div>

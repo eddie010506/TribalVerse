@@ -19,12 +19,14 @@ export interface User {
 interface UserSearchProps {
   onSelectUser: (user: User) => void;
   selectedUsers: User[];
+  onRemoveUser?: (userId: number) => void;
   placeholder?: string;
 }
 
 export function UserSearch({ 
   onSelectUser, 
   selectedUsers,
+  onRemoveUser,
   placeholder = "Search for users..." 
 }: UserSearchProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -118,6 +120,15 @@ export function UserSearch({
                 <AvatarFallback>{getInitial(user.username)}</AvatarFallback>
               </Avatar>
               <span className="text-xs font-medium">{user.username}</span>
+              {onRemoveUser && (
+                <button 
+                  type="button"
+                  onClick={() => onRemoveUser(user.id)}
+                  className="ml-1 rounded-full hover:bg-muted p-0.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <X className="h-3 w-3 text-muted-foreground" />
+                </button>
+              )}
             </div>
           ))}
         </div>

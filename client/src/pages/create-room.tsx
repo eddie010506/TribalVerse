@@ -101,8 +101,22 @@ export default function CreateRoom() {
     }
   };
   
+  // Handle removing a user from the invite list
+  const handleRemoveUser = (userId: number) => {
+    setSelectedUsers(prev => prev.filter(user => user.id !== userId));
+  };
+  
   // Form submission handler
   const onSubmit = (values: z.infer<typeof createRoomSchema>) => {
+    // Validate that at least one user is invited
+    if (selectedUsers.length === 0) {
+      form.setError("root", { 
+        type: "manual", 
+        message: "You must invite at least one user" 
+      });
+      return;
+    }
+    
     createRoomMutation.mutate(values);
   };
   
@@ -130,6 +144,11 @@ export default function CreateRoom() {
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  {form.formState.errors.root && (
+                    <div className="bg-destructive/10 p-3 rounded-md text-destructive text-sm font-medium">
+                      {form.formState.errors.root.message}
+                    </div>
+                  )}
                   <FormField
                     control={form.control}
                     name="name"
@@ -170,14 +189,20 @@ export default function CreateRoom() {
                       <h3 className="text-lg font-medium">Invite users</h3>
                     </div>
                     <FormDescription>
-                      Search for users to invite to your new chat room (optional)
+                      Search for users to invite to your new chat room (required)
                     </FormDescription>
                     
                     <UserSearch 
                       onSelectUser={handleSelectUser}
                       selectedUsers={selectedUsers}
+                      onRemoveUser={handleRemoveUser}
                       placeholder="Search for users to invite..."
                     />
+                    {selectedUsers.length === 0 && form.formState.isSubmitted && (
+                      <p className="text-sm font-medium text-destructive">
+                        You must invite at least one user
+                      </p>
+                    )}
                   </div>
                   
                   <div className="flex justify-end space-x-2 pt-4">
