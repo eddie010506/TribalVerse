@@ -11,6 +11,7 @@ import ProfilePage from "@/pages/profile-page";
 import UserProfilePage from "@/pages/user-profile-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
+import { RoomInvitationsProvider } from "@/hooks/use-room-invitations";
 
 function Router() {
   return (

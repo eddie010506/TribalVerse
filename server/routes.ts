@@ -486,22 +486,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Search query must be at least 2 characters" });
       }
       
-      // Get all users via Drizzle
-      const users = await db.select({
-        id: schema.users.id,
-        username: schema.users.username,
-        profilePicture: schema.users.profilePicture
-      })
-      .from(schema.users)
-      .where(
-        and(
-          like(schema.users.username, `%${query}%`),
-          notEq(schema.users.id, req.user!.id)
-        )
-      )
-      .limit(10);
+      // Search users with raw SQL query
+      const result = await pool.query(`
+        SELECT id, username, profile_picture as "profilePicture"
+        FROM users 
+        WHERE username ILIKE $1 
+        AND id != $2
+        LIMIT 10
+      `, [`%${query}%`, req.user!.id]);
       
-      res.json(users);
+      res.json(result.rows);
     } catch (error) {
       console.error("Error searching users:", error);
       res.status(500).json({ message: "Failed to search users" });

@@ -48,7 +48,7 @@ export function RoomList({ rooms, isLoading }: RoomListProps) {
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">
               <Link href={`/rooms/${room.id}`}>
-                <a className="text-primary hover:underline">{room.name}</a>
+                <span className="text-primary hover:underline cursor-pointer">{room.name}</span>
               </Link>
             </CardTitle>
             <CardDescription>
