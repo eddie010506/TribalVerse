@@ -21,8 +21,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { ArrowLeft, Users, Info, Trash2 } from 'lucide-react';
+import { ArrowLeft, Users, Info, Trash2, MapPin } from 'lucide-react';
 import { Link } from 'wouter';
+import { MeetupPlacesCard } from '@/components/ai/meetup-places-card';
 
 export default function ChatRoomPage() {
   // Get room id from URL
@@ -148,7 +149,8 @@ export default function ChatRoomPage() {
       <Header />
       
       <main className="flex-grow flex flex-col container mx-auto px-4 py-4">
-        <div className="bg-white rounded-lg shadow-sm border flex flex-col h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-3 bg-white rounded-lg shadow-sm border flex flex-col h-[calc(100vh-200px)]">
           {/* Room header */}
           <div className="border-b p-4 flex items-center justify-between">
             <div className="flex items-center">
@@ -201,6 +203,14 @@ export default function ChatRoomPage() {
             onSendMessage={handleSendMessage}
             disabled={!connected}
           />
+          </div>
+          
+          {/* AI Meetup Recommendations */}
+          <div className="hidden md:block md:col-span-1">
+            {roomId && room && !room.isSelfChat && messages.length >= 20 && (
+              <MeetupPlacesCard roomId={roomId} />
+            )}
+          </div>
         </div>
       </main>
       
