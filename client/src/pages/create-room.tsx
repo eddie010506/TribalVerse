@@ -66,7 +66,8 @@ export default function CreateRoom() {
       const roomData = {
         ...data,
         creatorId: user!.id,
-        invitees: selectedUsers.map(user => user.id)
+        invitees: isSelfChatMode ? [] : selectedUsers.map(user => user.id),
+        isSelfChat: isSelfChatMode
       };
       
       const res = await apiRequest('POST', '/api/rooms', roomData);
@@ -80,9 +81,11 @@ export default function CreateRoom() {
       queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
       toast({
         title: 'Room created',
-        description: selectedUsers.length > 0 
-          ? `"${newRoom.name}" has been created and invitations sent.`
-          : `"${newRoom.name}" has been created successfully.`,
+        description: isSelfChatMode
+          ? `Your personal chat room "${newRoom.name}" has been created.`
+          : (selectedUsers.length > 0 
+              ? `"${newRoom.name}" has been created and invitations sent.`
+              : `"${newRoom.name}" has been created successfully.`),
       });
       navigate(`/rooms/${newRoom.id}`);
     },
@@ -158,9 +161,13 @@ export default function CreateRoom() {
           
           <Card className="border shadow-sm">
             <CardHeader>
-              <CardTitle className="text-2xl font-bold">Create a new room</CardTitle>
+              <CardTitle className="text-2xl font-bold">
+                {isSelfChatMode ? "Create a personal chat room" : "Create a new room"}
+              </CardTitle>
               <CardDescription>
-                Create a new chat room for you and others to message in
+                {isSelfChatMode 
+                  ? "Create a private space for your thoughts, notes, and personal reminders" 
+                  : "Create a new chat room for you and others to message in"}
               </CardDescription>
             </CardHeader>
             
@@ -206,27 +213,56 @@ export default function CreateRoom() {
                   
                   <Separator className="my-4" />
                   
-                  <div className="space-y-3">
-                    <div className="flex items-center">
-                      <UserPlus className="h-5 w-5 mr-2 text-muted-foreground" />
-                      <h3 className="text-lg font-medium">Invite users</h3>
-                    </div>
-                    <FormDescription>
-                      Search for users to invite to your new chat room (required)
-                    </FormDescription>
-                    
-                    <UserSearch 
-                      onSelectUser={handleSelectUser}
-                      selectedUsers={selectedUsers}
-                      onRemoveUser={handleRemoveUser}
-                      placeholder="Search for users to invite..."
-                    />
-                    {selectedUsers.length === 0 && form.formState.isSubmitted && (
-                      <p className="text-sm font-medium text-destructive">
-                        You must invite at least one user
-                      </p>
-                    )}
+                  {/* Self Chat Mode Toggle */}
+                  <div className="bg-muted/30 rounded-lg p-4 mb-6">
+                    <button
+                      type="button"
+                      className={`w-full flex items-center justify-between rounded-md p-3 ${
+                        isSelfChatMode 
+                          ? 'bg-primary/10 border border-primary/20' 
+                          : 'bg-white border hover:bg-muted/20'
+                      }`}
+                      onClick={setupSelfChatMode}
+                    >
+                      <div className="flex items-center">
+                        <MessageSquareText className="h-5 w-5 mr-3 text-primary" />
+                        <div className="text-left">
+                          <h3 className="font-medium">Chat to myself</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Create a private space for your notes and thoughts
+                          </p>
+                        </div>
+                      </div>
+                      {isSelfChatMode && (
+                        <CheckCircle2 className="h-5 w-5 text-primary" />
+                      )}
+                    </button>
                   </div>
+                  
+                  {/* User invitation section - only shown when not in self-chat mode */}
+                  {!isSelfChatMode && (
+                    <div className="space-y-3">
+                      <div className="flex items-center">
+                        <UserPlus className="h-5 w-5 mr-2 text-muted-foreground" />
+                        <h3 className="text-lg font-medium">Invite users</h3>
+                      </div>
+                      <FormDescription>
+                        Search for users to invite to your new chat room (required)
+                      </FormDescription>
+                      
+                      <UserSearch 
+                        onSelectUser={handleSelectUser}
+                        selectedUsers={selectedUsers}
+                        onRemoveUser={handleRemoveUser}
+                        placeholder="Search for users to invite..."
+                      />
+                      {selectedUsers.length === 0 && !isSelfChatMode && form.formState.isSubmitted && (
+                        <p className="text-sm font-medium text-destructive">
+                          You must invite at least one user
+                        </p>
+                      )}
+                    </div>
+                  )}
                   
                   <div className="flex justify-end space-x-2 pt-4">
                     <Link href="/">

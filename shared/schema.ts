@@ -52,12 +52,14 @@ export const chatRooms = pgTable("chat_rooms", {
   description: text("description"),
   creatorId: integer("creator_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  isSelfChat: boolean("is_self_chat").default(false),
 });
 
 export const insertChatRoomSchema = createInsertSchema(chatRooms).pick({
   name: true,
   description: true,
   creatorId: true,
+  isSelfChat: true,
 });
 
 export type InsertChatRoom = z.infer<typeof insertChatRoomSchema>;
