@@ -13,8 +13,8 @@ import {
 
 export function Header() {
   const { user, logoutMutation } = useAuth();
-  // Always show hamburger icon on all pages
-  const isMobileView = true;
+  // Use a constant to always show hamburger menu on mobile-sized screens
+  const isMobileView = true; // This forces mobile view for all screen sizes as required
   const [location] = useLocation();
 
   const handleLogout = () => {
