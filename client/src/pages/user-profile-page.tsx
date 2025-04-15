@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, UserPlus, UserMinus, ArrowLeft } from "lucide-react";
+import { useFriendRequests } from "@/hooks/use-friend-requests";
+import { Loader2, UserPlus, UserMinus, ArrowLeft, UserCheck, UserX } from "lucide-react";
 
 interface UserProfile {
   id: number;
@@ -27,6 +28,20 @@ export default function UserProfilePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { sentRequests, sendRequest } = useFriendRequests();
+  
+  // Check if we've already sent a friend request to this user
+  const [hasPendingFriendRequest, setHasPendingFriendRequest] = useState(false);
+  
+  // Update friend request status when sentRequests changes
+  useEffect(() => {
+    if (sentRequests && userId) {
+      const request = sentRequests.find(
+        req => req.receiverId === userId && req.status === 'pending'
+      );
+      setHasPendingFriendRequest(!!request);
+    }
+  }, [sentRequests, userId]);
   
   // Fetch user profile
   const { 
@@ -41,7 +56,7 @@ export default function UserProfilePage() {
   // Follow user mutation
   const followMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/users/${userId}/follow`);
+      const res = await apiRequest("POST", `/api/follows`, { followingId: userId });
       return res.json();
     },
     onSuccess: () => {
@@ -63,7 +78,7 @@ export default function UserProfilePage() {
   // Unfollow user mutation
   const unfollowMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("DELETE", `/api/users/${userId}/follow`);
+      const res = await apiRequest("DELETE", `/api/follows/${userId}`);
       return res.json();
     },
     onSuccess: () => {
@@ -142,6 +157,17 @@ export default function UserProfilePage() {
       followMutation.mutate();
     }
   };
+  
+  // Send friend request handler
+  const handleSendFriendRequest = () => {
+    if (!hasPendingFriendRequest) {
+      sendRequest(userId);
+      toast({
+        title: "Friend request sent",
+        description: `A friend request has been sent to ${profile.username}`,
+      });
+    }
+  };
 
   return (
     <div className="container mx-auto py-10 px-4 md:px-6">
@@ -176,20 +202,36 @@ export default function UserProfilePage() {
                 </div>
               </div>
               
-              <Button
-                onClick={handleFollowToggle}
-                variant={profile.isFollowing ? "outline" : "default"}
-                disabled={followMutation.isPending || unfollowMutation.isPending}
-              >
-                {(followMutation.isPending || unfollowMutation.isPending) ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : profile.isFollowing ? (
-                  <UserMinus className="h-4 w-4 mr-2" />
-                ) : (
-                  <UserPlus className="h-4 w-4 mr-2" />
-                )}
-                {profile.isFollowing ? "Unfollow" : "Follow"}
-              </Button>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={handleSendFriendRequest}
+                  variant="outline"
+                  disabled={hasPendingFriendRequest}
+                  title={hasPendingFriendRequest ? "Friend request pending" : "Send friend request"}
+                >
+                  {hasPendingFriendRequest ? (
+                    <UserCheck className="h-4 w-4 mr-2" />
+                  ) : (
+                    <UserX className="h-4 w-4 mr-2" />
+                  )}
+                  {hasPendingFriendRequest ? "Request Sent" : "Add Friend"}
+                </Button>
+                
+                <Button
+                  onClick={handleFollowToggle}
+                  variant={profile.isFollowing ? "outline" : "default"}
+                  disabled={followMutation.isPending || unfollowMutation.isPending}
+                >
+                  {(followMutation.isPending || unfollowMutation.isPending) ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : profile.isFollowing ? (
+                    <UserMinus className="h-4 w-4 mr-2" />
+                  ) : (
+                    <UserPlus className="h-4 w-4 mr-2" />
+                  )}
+                  {profile.isFollowing ? "Unfollow" : "Follow"}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           
