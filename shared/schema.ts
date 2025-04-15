@@ -277,6 +277,8 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     fields: [posts.userId],
     references: [users.id],
   }),
+  comments: many(comments),
+  likes: many(postLikes),
 }));
 
 // Post with user info for display
@@ -362,9 +364,4 @@ export const postLikesRelations = relations(postLikes, ({ one }) => ({
   }),
 }));
 
-// Update post relations to include comments and likes
-export const extendedPostsRelations = relations(posts, ({ one, many }) => ({
-  ...postsRelations.relations,
-  comments: many(comments),
-  likes: many(postLikes),
-}));
+

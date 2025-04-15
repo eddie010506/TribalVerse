@@ -1238,6 +1238,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Post comment routes
+  app.get("/api/posts/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      const comments = await storage.getPostComments(postId);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching post comments:", error);
+      res.status(500).json({ message: "Failed to fetch comments" });
+    }
+  });
+  
+  app.post("/api/posts/:id/comments", isAuthenticated, isEmailVerified, async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      const { content } = req.body;
+      if (!content || !content.trim()) {
+        return res.status(400).json({ message: "Comment content is required" });
+      }
+      
+      const userId = req.user!.id;
+      const comment = await storage.createComment({
+        content,
+        userId,
+        postId
+      });
+      
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error("Error creating comment:", error);
+      res.status(500).json({ message: "Failed to create comment" });
+    }
+  });
+  
+  app.delete("/api/comments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const commentId = parseInt(req.params.id);
+      if (isNaN(commentId)) {
+        return res.status(400).json({ message: "Invalid comment ID" });
+      }
+      
+      const userId = req.user!.id;
+      const result = await storage.deleteComment(commentId, userId);
+      
+      if (!result) {
+        return res.status(403).json({ message: "Not authorized to delete this comment or comment not found" });
+      }
+      
+      res.json({ message: "Comment deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      res.status(500).json({ message: "Failed to delete comment" });
+    }
+  });
+  
+  // Post like routes
+  app.post("/api/posts/:id/like", isAuthenticated, async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      const userId = req.user!.id;
+      const like = await storage.likePost(userId, postId);
+      
+      if (!like) {
+        return res.status(400).json({ message: "Already liked this post" });
+      }
+      
+      res.status(201).json(like);
+    } catch (error) {
+      console.error("Error liking post:", error);
+      res.status(500).json({ message: "Failed to like post" });
+    }
+  });
+  
+  app.delete("/api/posts/:id/like", isAuthenticated, async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      const userId = req.user!.id;
+      const result = await storage.unlikePost(userId, postId);
+      
+      if (!result) {
+        return res.status(400).json({ message: "Not liked this post or error occurred" });
+      }
+      
+      res.json({ message: "Post unliked successfully" });
+    } catch (error) {
+      console.error("Error unliking post:", error);
+      res.status(500).json({ message: "Failed to unlike post" });
+    }
+  });
+
   // Create HTTP server
   const httpServer = createServer(app);
 
