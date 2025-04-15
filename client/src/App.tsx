@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -15,8 +15,22 @@ import AIChatPage from "@/pages/ai-chat-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RoomInvitationsProvider } from "@/hooks/use-room-invitations";
+import { useAIProfileSetup } from "@/hooks/use-ai-profile-setup";
+import { useEffect } from "react";
 
-function Router() {
+// ProfileCheckRouter component to check if profile is complete and redirect if needed
+function ProfileCheckRouter() {
+  const { isProfileComplete, isLoading, redirectToProfileSetup } = useAIProfileSetup();
+  const [location] = useLocation();
+  
+  useEffect(() => {
+    // Only redirect if profile is incomplete, not loading, and not already on AI chat page
+    if (isProfileComplete === false && !isLoading && 
+        !location.startsWith('/ai-chat') && location !== '/auth') {
+      redirectToProfileSetup();
+    }
+  }, [isProfileComplete, isLoading, location, redirectToProfileSetup]);
+
   return (
     <Switch>
       <ProtectedRoute path="/" component={PostsPage} />
@@ -41,7 +55,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RoomInvitationsProvider>
-          <Router />
+          <ProfileCheckRouter />
           <Toaster />
         </RoomInvitationsProvider>
       </AuthProvider>
