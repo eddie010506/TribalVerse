@@ -13,8 +13,8 @@ import {
 
 export function Header() {
   const { user, logoutMutation } = useAuth();
-  // For testing, always show mobile view
-  const [isMobileView, setIsMobileView] = useState(true);
+  // Always show hamburger icon on all pages
+  const isMobileView = true;
   const [location] = useLocation();
 
   const handleLogout = () => {

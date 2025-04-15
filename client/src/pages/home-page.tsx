@@ -5,11 +5,85 @@ import { Footer } from '@/components/layout/footer';
 import { RoomList } from '@/components/chat/room-list';
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
-import { PlusCircle, Mail } from 'lucide-react';
+import { PlusCircle, Mail, FileText } from 'lucide-react';
 import { RoomInvitations, AcceptedRooms } from '@/components/social/room-invitations';
 import { useRoomInvitations } from '@/hooks/use-room-invitations';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { usePosts, PostsProvider } from '@/hooks/use-posts';
+
+// Component to show recent posts on the homepage
+function RecentPosts() {
+  const { posts, isLoading, isError } = usePosts();
+  
+  if (isLoading) {
+    return (
+      <div className="p-4 text-center">
+        <div className="animate-pulse flex space-x-4">
+          <div className="flex-1 space-y-4 py-1">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 rounded"></div>
+              <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (isError) {
+    return (
+      <div className="p-4 text-center text-red-500">
+        Failed to load recent posts.
+      </div>
+    );
+  }
+  
+  if (posts.length === 0) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        No recent posts. Check the Posts page to create one!
+      </div>
+    );
+  }
+  
+  // Show only the 3 most recent posts
+  const recentPosts = posts.slice(0, 3);
+  
+  return (
+    <div className="space-y-3">
+      {recentPosts.map(post => (
+        <div key={post.id} className="p-3 border rounded-md hover:bg-gray-50">
+          <div className="flex items-center mb-2">
+            <div className="font-medium">{post.user.username}</div>
+            <div className="mx-2 text-gray-300">•</div>
+            <div className="text-xs text-gray-500">
+              {new Date(post.createdAt).toLocaleDateString()}
+            </div>
+          </div>
+          <p className="text-sm line-clamp-2">{post.content}</p>
+          {post.imageUrl && (
+            <div className="mt-2">
+              <img 
+                src={post.imageUrl} 
+                alt="Post attachment"
+                className="h-16 w-auto object-cover rounded"
+              />
+            </div>
+          )}
+        </div>
+      ))}
+      <div className="text-center">
+        <Link href="/posts">
+          <Button variant="link" className="text-primary">
+            View all posts
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export default function HomePage() {
   const {
@@ -70,6 +144,21 @@ export default function HomePage() {
               <CardContent>
                 <RoomInvitations />
                 <AcceptedRooms />
+              </CardContent>
+            </Card>
+            
+            {/* Recent Posts */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 mr-2 text-primary" />
+                  <CardTitle className="text-lg">Recent Posts</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <PostsProvider>
+                  <RecentPosts />
+                </PostsProvider>
               </CardContent>
             </Card>
           </div>
