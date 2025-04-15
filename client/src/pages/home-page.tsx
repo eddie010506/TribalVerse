@@ -5,7 +5,11 @@ import { Footer } from '@/components/layout/footer';
 import { RoomList } from '@/components/chat/room-list';
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Mail } from 'lucide-react';
+import { RoomInvitations, AcceptedRooms } from '@/components/social/room-invitations';
+import { useRoomInvitations } from '@/hooks/use-room-invitations';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 
 export default function HomePage() {
   const {
@@ -15,6 +19,9 @@ export default function HomePage() {
   } = useQuery<ChatRoom[]>({
     queryKey: ['/api/rooms'],
   });
+
+  const { receivedInvitations, isLoadingReceived } = useRoomInvitations();
+  const hasPendingInvitations = receivedInvitations.some(inv => inv.status === 'pending');
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -36,17 +43,37 @@ export default function HomePage() {
             </Button>
           </Link>
         </div>
-        
-        {error ? (
-          <div className="bg-red-50 p-4 rounded-md text-red-600">
-            Failed to load chat rooms. Please try again later.
+
+        <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-4">
+          <div className="md:col-span-2 lg:col-span-3">
+            {error ? (
+              <div className="bg-red-50 p-4 rounded-md text-red-600">
+                Failed to load chat rooms. Please try again later.
+              </div>
+            ) : (
+              <RoomList 
+                rooms={rooms || []} 
+                isLoading={isLoading} 
+              />
+            )}
           </div>
-        ) : (
-          <RoomList 
-            rooms={rooms || []} 
-            isLoading={isLoading} 
-          />
-        )}
+
+          <div className="space-y-6">
+            {/* Room Invitations */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center">
+                  <Mail className="h-5 w-5 mr-2 text-primary" />
+                  <CardTitle className="text-lg">Room Invitations</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <RoomInvitations />
+                <AcceptedRooms />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </main>
       
       <Footer />
