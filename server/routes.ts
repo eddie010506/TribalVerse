@@ -931,7 +931,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user is the creator
-      if (room.createdBy !== userId) {
+      if (room.creatorId !== userId) {
         return res.status(403).json({ message: "You do not have permission to delete this room" });
       }
       

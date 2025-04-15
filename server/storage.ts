@@ -182,7 +182,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // First verify that the user is the creator of the room
       const room = await this.getChatRoom(id);
-      if (!room || room.createdBy !== userId) {
+      if (!room || room.creatorId !== userId) {
         return false;
       }
       

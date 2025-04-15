@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, UserPlus } from 'lucide-react';
+import { ArrowLeft, UserPlus, MessageSquareText, CheckCircle2 } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -49,6 +49,7 @@ export default function CreateRoom() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [selectedUsers, setSelectedUsers] = useState<UserSearchResult[]>([]);
+  const [isSelfChatMode, setIsSelfChatMode] = useState(false);
   
   // Form setup
   const form = useForm<z.infer<typeof createRoomSchema>>({
@@ -106,10 +107,31 @@ export default function CreateRoom() {
     setSelectedUsers(prev => prev.filter(user => user.id !== userId));
   };
   
+  // Set up default values for self-chat mode
+  const setupSelfChatMode = () => {
+    if (!isSelfChatMode) {
+      // Switching to self-chat mode
+      setIsSelfChatMode(true);
+      // Set a default name if empty
+      if (!form.getValues('name')) {
+        form.setValue('name', 'My Personal Notes');
+      }
+      // Set a default description if empty
+      if (!form.getValues('description')) {
+        form.setValue('description', 'A private space for my thoughts and notes');
+      }
+      // Clear any selected users
+      setSelectedUsers([]);
+    } else {
+      // Switching back to regular mode
+      setIsSelfChatMode(false);
+    }
+  };
+
   // Form submission handler
   const onSubmit = (values: z.infer<typeof createRoomSchema>) => {
-    // Validate that at least one user is invited
-    if (selectedUsers.length === 0) {
+    // In self-chat mode, we don't require inviting users
+    if (!isSelfChatMode && selectedUsers.length === 0) {
       form.setError("root", { 
         type: "manual", 
         message: "You must invite at least one user" 
@@ -117,6 +139,7 @@ export default function CreateRoom() {
       return;
     }
     
+    // For self-chat mode, create a room without invitees
     createRoomMutation.mutate(values);
   };
   

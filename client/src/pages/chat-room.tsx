@@ -1,20 +1,37 @@
-import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useRoute } from 'wouter';
+import { useEffect, useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useRoute, useLocation } from 'wouter';
 import { ChatRoom, MessageWithUser } from '@shared/schema';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { MessageList } from '@/components/chat/message-list';
 import { ChatInput } from '@/components/chat/chat-input';
 import { useWebSocket } from '@/hooks/use-websocket';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, Info } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { ArrowLeft, Users, Info, Trash2 } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function ChatRoomPage() {
   // Get room id from URL
   const [match, params] = useRoute('/rooms/:id');
   const roomId = params?.id ? parseInt(params.id) : undefined;
+  const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   // Fetch room data
   const {
@@ -50,6 +67,36 @@ export default function ChatRoomPage() {
   const handleSendMessage = (content: string, imageUrl?: string) => {
     return sendMessage(content, imageUrl);
   };
+  
+  // Delete Room Mutation
+  const deleteRoomMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('DELETE', `/api/rooms/${roomId}`);
+      if (!res.ok) {
+        throw new Error('Failed to delete chat room');
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Chat room deleted successfully',
+      });
+      // Invalidate and redirect
+      queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
+      navigate('/');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete the chat room',
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Check if current user is the room creator
+  const isRoomCreator = room && user && room.creatorId === user.id;
   
   if (!roomId) {
     return (
@@ -117,13 +164,29 @@ export default function ChatRoomPage() {
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
-              <span className={`inline-block rounded-full h-2 w-2 ${
-                connected ? 'bg-green-500' : 'bg-red-500'
-              }`}></span>
-              <span className="text-sm text-gray-500">
-                {connected ? 'Connected' : 'Disconnected'}
-              </span>
+            <div className="flex items-center gap-4">
+              {/* Connection status */}
+              <div className="flex items-center gap-2">
+                <span className={`inline-block rounded-full h-2 w-2 ${
+                  connected ? 'bg-green-500' : 'bg-red-500'
+                }`}></span>
+                <span className="text-sm text-gray-500">
+                  {connected ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
+              
+              {/* Delete room button (only shown to room creator) */}
+              {isRoomCreator && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-red-500 border-red-200 hover:bg-red-50"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete Room
+                </Button>
+              )}
             </div>
           </div>
           
@@ -142,6 +205,28 @@ export default function ChatRoomPage() {
       </main>
       
       <Footer />
+      
+      {/* Delete Room Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this chat room?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. All messages in this room will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-red-500 hover:bg-red-600"
+              onClick={() => deleteRoomMutation.mutate()}
+              disabled={deleteRoomMutation.isPending}
+            >
+              {deleteRoomMutation.isPending ? 'Deleting...' : 'Delete Room'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
