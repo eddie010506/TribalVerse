@@ -10,7 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Image, Trash2, Globe, Users, UserRound, Clock, ArrowLeft } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 function CreatePostForm() {
   const [content, setContent] = useState("");
@@ -21,6 +21,7 @@ function CreatePostForm() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { createPostMutation } = usePosts();
+  const [_, setLocation] = useLocation();
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -107,6 +108,11 @@ function CreatePostForm() {
           title: "Success",
           description: "Your post has been created!",
         });
+        
+        // Navigate back to the posts page
+        setTimeout(() => {
+          setLocation('/');
+        }, 500);
       }
     });
   };
@@ -115,7 +121,7 @@ function CreatePostForm() {
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
         <div className="flex items-center mb-2">
-          <Link href="/posts">
+          <Link href="/">
             <Button variant="ghost" size="sm" className="mr-2">
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back to Posts
