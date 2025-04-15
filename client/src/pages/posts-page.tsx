@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePosts, PostsProvider, PostWithUser } from "@/hooks/use-posts";
+import { usePosts, PostsProvider, PostWithUser, PostComment } from "@/hooks/use-posts";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -259,7 +259,7 @@ function PostCard({ post }: { post: PostWithUser }) {
   } = usePosts();
   
   const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<PostComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentContent, setCommentContent] = useState("");
   const [likeCount, setLikeCount] = useState(post.likeCount || 0);
@@ -320,7 +320,7 @@ function PostCard({ post }: { post: PostWithUser }) {
       postId: post.id,
       content: commentContent
     }, {
-      onSuccess: (newComment: Comment) => {
+      onSuccess: (newComment: PostComment) => {
         // Add the user data to the comment for immediate display
         const commentWithUser = {
           ...newComment,
