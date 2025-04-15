@@ -1,7 +1,8 @@
-import { users, chatRooms, messages, follows, friendRequests, notifications } from "@shared/schema";
+import { users, chatRooms, messages, follows, friendRequests, notifications, roomInvitations } from "@shared/schema";
 import type { 
   User, InsertUser, ChatRoom, InsertChatRoom, Message, InsertMessage, MessageWithUser,
-  Follow, InsertFollow, FriendRequest, InsertFriendRequest, Notification, InsertNotification
+  Follow, InsertFollow, FriendRequest, InsertFriendRequest, Notification, InsertNotification,
+  RoomInvitation, InsertRoomInvitation
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
@@ -50,6 +51,12 @@ export interface IStorage {
   markNotificationAsRead(notificationId: number): Promise<boolean>;
   markAllNotificationsAsRead(userId: number): Promise<boolean>;
   createNotification(notification: InsertNotification): Promise<Notification>;
+  
+  // Room invitation methods
+  getSentRoomInvitations(userId: number): Promise<RoomInvitation[]>;
+  getReceivedRoomInvitations(userId: number): Promise<RoomInvitation[]>;
+  createRoomInvitation(invitation: InsertRoomInvitation): Promise<RoomInvitation>;
+  respondToRoomInvitation(invitationId: number, status: 'accepted' | 'declined'): Promise<RoomInvitation | undefined>;
   
   // Session store
   sessionStore: any;
@@ -471,6 +478,128 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return newNotification;
+  }
+
+  // Room invitation methods
+  async getSentRoomInvitations(userId: number): Promise<RoomInvitation[]> {
+    return await db
+      .select()
+      .from(roomInvitations)
+      .where(eq(roomInvitations.inviterId, userId))
+      .orderBy(desc(roomInvitations.createdAt));
+  }
+
+  async getReceivedRoomInvitations(userId: number): Promise<RoomInvitation[]> {
+    return await db
+      .select()
+      .from(roomInvitations)
+      .where(eq(roomInvitations.inviteeId, userId))
+      .orderBy(desc(roomInvitations.createdAt));
+  }
+
+  async createRoomInvitation(invitation: InsertRoomInvitation): Promise<RoomInvitation> {
+    // Check if invitation already exists
+    const existingInvitations = await db
+      .select()
+      .from(roomInvitations)
+      .where(
+        and(
+          eq(roomInvitations.roomId, invitation.roomId),
+          eq(roomInvitations.inviterId, invitation.inviterId),
+          eq(roomInvitations.inviteeId, invitation.inviteeId)
+        )
+      );
+
+    if (existingInvitations.length > 0) {
+      return existingInvitations[0];
+    }
+
+    const [newInvitation] = await db
+      .insert(roomInvitations)
+      .values(invitation)
+      .returning();
+
+    // Get inviter and room information for the notification
+    const [inviter] = await db
+      .select({
+        id: users.id,
+        username: users.username
+      })
+      .from(users)
+      .where(eq(users.id, invitation.inviterId));
+
+    const [room] = await db
+      .select({
+        id: chatRooms.id,
+        name: chatRooms.name
+      })
+      .from(chatRooms)
+      .where(eq(chatRooms.id, invitation.roomId));
+
+    // Create a notification for the invitee
+    if (inviter && room) {
+      await this.createNotification({
+        userId: invitation.inviteeId,
+        type: 'room_invitation',
+        actorId: invitation.inviterId,
+        entityId: newInvitation.id,
+        entityType: 'room_invitation',
+        message: `${inviter.username} invited you to join the "${room.name}" chat room.`,
+      });
+    }
+
+    return newInvitation;
+  }
+
+  async respondToRoomInvitation(invitationId: number, status: 'accepted' | 'declined'): Promise<RoomInvitation | undefined> {
+    const [invitation] = await db
+      .select()
+      .from(roomInvitations)
+      .where(eq(roomInvitations.id, invitationId));
+
+    if (!invitation) {
+      return undefined;
+    }
+
+    const [updatedInvitation] = await db
+      .update(roomInvitations)
+      .set({
+        status,
+        updatedAt: new Date(),
+      })
+      .where(eq(roomInvitations.id, invitationId))
+      .returning();
+
+    // Get user and room information for the notification
+    const [invitee] = await db
+      .select({
+        id: users.id,
+        username: users.username
+      })
+      .from(users)
+      .where(eq(users.id, invitation.inviteeId));
+
+    const [room] = await db
+      .select({
+        id: chatRooms.id,
+        name: chatRooms.name
+      })
+      .from(chatRooms)
+      .where(eq(chatRooms.id, invitation.roomId));
+
+    // Create a notification for the inviter about the response
+    if (invitee && room) {
+      await this.createNotification({
+        userId: invitation.inviterId,
+        type: 'room_invitation_response',
+        actorId: invitation.inviteeId,
+        entityId: invitationId,
+        entityType: 'room_invitation',
+        message: `${invitee.username} ${status === 'accepted' ? 'accepted' : 'declined'} your invitation to join "${room.name}" chat room.`,
+      });
+    }
+
+    return updatedInvitation;
   }
 }
 

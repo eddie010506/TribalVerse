@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, unique, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -41,6 +41,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   following: many(follows, { relationName: "follower" }),
   notifications: many(notifications, { relationName: "user" }),
   actorNotifications: many(notifications, { relationName: "actor" }),
+  sentRoomInvitations: many(roomInvitations, { relationName: "inviter" }),
+  receivedRoomInvitations: many(roomInvitations, { relationName: "invitee" }),
 }));
 
 // Chat room schema
@@ -68,6 +70,7 @@ export const chatRoomsRelations = relations(chatRooms, ({ one, many }) => ({
     references: [users.id],
   }),
   messages: many(messages),
+  invitations: many(roomInvitations),
 }));
 
 // Message schema
@@ -203,6 +206,42 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   }),
   actor: one(users, {
     fields: [notifications.actorId],
+    references: [users.id],
+  }),
+}));
+
+// Room Invitations schema
+export const roomInvitations = pgTable("room_invitations", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull().references(() => chatRooms.id),
+  inviterId: integer("inviter_id").notNull().references(() => users.id),
+  inviteeId: integer("invitee_id").notNull().references(() => users.id),
+  status: text("status").notNull().default("pending"), // pending, accepted, declined
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertRoomInvitationSchema = createInsertSchema(roomInvitations).pick({
+  roomId: true,
+  inviterId: true,
+  inviteeId: true,
+});
+
+export type InsertRoomInvitation = z.infer<typeof insertRoomInvitationSchema>;
+export type RoomInvitation = typeof roomInvitations.$inferSelect;
+
+// Room Invitations relations
+export const roomInvitationsRelations = relations(roomInvitations, ({ one }) => ({
+  room: one(chatRooms, {
+    fields: [roomInvitations.roomId],
+    references: [chatRooms.id],
+  }),
+  inviter: one(users, {
+    fields: [roomInvitations.inviterId],
+    references: [users.id],
+  }),
+  invitee: one(users, {
+    fields: [roomInvitations.inviteeId],
     references: [users.id],
   }),
 }));
