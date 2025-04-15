@@ -3,10 +3,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Notification } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
-export function useNotifications(userId?: number) {
+export function useNotifications() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const userId = user?.id;
 
   const {
     data: notifications = [],
