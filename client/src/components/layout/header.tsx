@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { MessageSquare, User } from 'lucide-react';
 import { Link } from 'wouter';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 export function Header() {
   const { user, logoutMutation } = useAuth();
@@ -24,6 +25,7 @@ export function Header() {
         
         {user ? (
           <div className="flex items-center gap-4">
+            <NotificationBell userId={user.id} />
             <Link href="/profile">
               <div className="flex items-center text-sm text-neutral-600 cursor-pointer hover:text-primary">
                 <User className="h-4 w-4 mr-1" />

@@ -13,7 +13,7 @@ interface NotificationListProps {
 
 export function NotificationList({ notifications, isLoading }: NotificationListProps) {
   const { markAsRead } = useNotifications();
-  const [, navigate] = useLocation();
+  const [, setLocation] = useLocation();
 
   if (isLoading) {
     return (
@@ -49,9 +49,9 @@ export function NotificationList({ notifications, isLoading }: NotificationListP
     
     // Navigate based on notification type
     if (notification.entityType === "message" && notification.entityId) {
-      navigate(`/rooms/${notification.entityId}`);
+      setLocation(`/rooms/${notification.entityId}`);
     } else if (notification.entityType === "user" && notification.entityId) {
-      navigate(`/users/${notification.entityId}`);
+      setLocation(`/users/${notification.entityId}`);
     }
   };
 
