@@ -8,6 +8,7 @@ import HomePage from "@/pages/home-page";
 import ChatRoom from "@/pages/chat-room";
 import CreateRoom from "@/pages/create-room";
 import ProfilePage from "@/pages/profile-page";
+import UserProfilePage from "@/pages/user-profile-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 

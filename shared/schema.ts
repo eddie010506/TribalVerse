@@ -107,7 +107,7 @@ export type MessageWithUser = Message & {
   user: {
     id: number;
     username: string;
-    profilePicture?: string;
+    profilePicture?: string | null;
   };
 };
 

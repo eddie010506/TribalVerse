@@ -183,7 +183,11 @@ export class DatabaseStorage implements IStorage {
     const messageWithUsers = await Promise.all(
       messagesData.map(async (message) => {
         const [user] = await db
-          .select({ id: users.id, username: users.username })
+          .select({ 
+            id: users.id, 
+            username: users.username,
+            profilePicture: users.profilePicture
+          })
           .from(users)
           .where(eq(users.id, message.userId));
 
@@ -192,6 +196,7 @@ export class DatabaseStorage implements IStorage {
           user: {
             id: user?.id || 0,
             username: user?.username || "Unknown User",
+            profilePicture: user?.profilePicture || null
           },
         };
       })

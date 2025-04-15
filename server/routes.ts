@@ -559,12 +559,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 const newMessage = await storage.createMessage(validatedData);
                 
+                // Get user with profile picture
+                const userInfo = await storage.getUser(clientInfo.userId);
+                
                 // Broadcast to all clients in the same room
                 const messageWithUser = {
                   ...newMessage,
                   user: {
                     id: clientInfo.userId,
-                    username: clientInfo.username
+                    username: clientInfo.username,
+                    profilePicture: userInfo?.profilePicture
                   }
                 };
                 

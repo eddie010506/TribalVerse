@@ -21,11 +21,16 @@ export function MessageItem({ message }: MessageItemProps) {
   return (
     <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`}>
       <div className={`flex ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'} max-w-[80%]`}>
-        <Avatar className="h-8 w-8 mt-1">
-          <AvatarFallback className={isCurrentUser ? 'bg-primary text-white' : 'bg-gray-300'}>
-            {message.user.username.substring(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <Link href={`/users/${message.user.id}`}>
+          <Avatar className="h-8 w-8 mt-1 cursor-pointer">
+            {message.user.profilePicture && (
+              <AvatarImage src={message.user.profilePicture} alt={message.user.username} />
+            )}
+            <AvatarFallback className={isCurrentUser ? 'bg-primary text-white' : 'bg-gray-300'}>
+              {message.user.username.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </Link>
         
         <div className={`mx-2 ${isCurrentUser ? 'text-right' : 'text-left'}`}>
           <Card className={`p-3 inline-block ${isCurrentUser ? 'bg-primary text-white' : 'bg-gray-100'}`}>
