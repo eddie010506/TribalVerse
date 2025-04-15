@@ -399,13 +399,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async isFollowing(followerId: number, followingId: number): Promise<boolean> {
-    const result = await pool.query(`
-      SELECT * FROM follows 
-      WHERE "followerId" = $1 AND "followingId" = $2
-      LIMIT 1
-    `, [followerId, followingId]);
-    
-    return result.rows.length > 0;
+    try {
+      const result = await pool.query(`
+        SELECT * FROM follows 
+        WHERE follower_id = $1 AND following_id = $2
+        LIMIT 1
+      `, [followerId, followingId]);
+      
+      return result.rows.length > 0;
+    } catch (error) {
+      console.error("Error checking if following:", error);
+      return false;
+    }
   }
 
   // Notification methods
@@ -418,12 +423,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUnreadNotificationCount(userId: number): Promise<number> {
-    const result = await pool.query(`
-      SELECT COUNT(*) as count FROM notifications 
-      WHERE "userId" = $1 AND "isRead" = false
-    `, [userId]);
+    try {
+      const result = await pool.query(`
+        SELECT COUNT(*) as count FROM notifications 
+        WHERE user_id = $1 AND is_read = false
+      `, [userId]);
 
-    return parseInt(result.rows[0]?.count || '0');
+      return parseInt(result.rows[0]?.count || '0');
+    } catch (error) {
+      console.error("Error getting unread notification count:", error);
+      return 0;
+    }
   }
 
   async markNotificationAsRead(notificationId: number): Promise<boolean> {
