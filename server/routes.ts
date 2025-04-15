@@ -638,6 +638,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return;
               }
               
+              // Get room info for better notification context
+              const room = await storage.getChatRoom(data.roomId);
+              
               try {
                 // Check if the user's email is verified before allowing messages
                 const user = await storage.getUser(clientInfo.userId);
@@ -674,16 +677,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 });
                 
                 // Create notifications for each user
-                for (const userId of userIds) {
+                Array.from(userIds).forEach(async (userId) => {
                   await storage.createNotification({
                     userId,
                     type: "message",
-                    message: `${clientInfo.username} sent a message in ${data.roomName || "a chat room"}`,
+                    message: `${clientInfo.username} sent a message in ${room?.name || 'a chat room'}`,
                     actorId: clientInfo.userId,
                     entityType: "message",
                     entityId: newMessage.id
                   });
-                }
+                });
                 
                 // Broadcast to all clients in the same room
                 const messageWithUser = {

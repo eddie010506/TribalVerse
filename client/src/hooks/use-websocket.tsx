@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { MessageWithUser } from '@shared/schema';
+import { queryClient } from '@/lib/queryClient';
 
 type WebSocketMessage = {
-  type: 'auth' | 'message' | 'new_message' | 'error';
+  type: 'auth' | 'message' | 'new_message' | 'refresh_notifications' | 'error';
   roomId?: number;
   content?: string;
   imageUrl?: string;
@@ -53,6 +54,10 @@ export function useWebSocket(roomId?: number) {
         
         if (data.type === 'new_message' && data.message && data.roomId === roomId) {
           setMessages(prev => [...prev, data.message!]);
+        } else if (data.type === 'refresh_notifications') {
+          // Refresh notifications
+          queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/notifications/count'] });
         } else if (data.type === 'error') {
           setError(data.error || 'An error occurred');
         }
