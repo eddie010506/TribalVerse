@@ -1,8 +1,9 @@
 import { MessageWithUser } from '@shared/schema';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
+import { Link } from 'wouter';
 
 interface MessageItemProps {
   message: MessageWithUser;
