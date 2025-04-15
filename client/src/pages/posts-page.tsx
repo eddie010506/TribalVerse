@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePosts, PostsProvider } from "@/hooks/use-posts";
+import { usePosts, PostsProvider, PostWithUser } from "@/hooks/use-posts";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,7 +23,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Link } from "wouter";
-import type { PostWithUser } from "../types";
 
 function CreatePostForm() {
   const [content, setContent] = useState("");

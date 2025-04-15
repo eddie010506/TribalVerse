@@ -9,6 +9,7 @@ import ChatRoom from "@/pages/chat-room";
 import CreateRoom from "@/pages/create-room";
 import ProfilePage from "@/pages/profile-page";
 import UserProfilePage from "@/pages/user-profile-page";
+import PostsPage from "@/pages/posts-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RoomInvitationsProvider } from "@/hooks/use-room-invitations";
@@ -21,6 +22,7 @@ function Router() {
       <ProtectedRoute path="/create-room" component={CreateRoom} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/users/:id" component={UserProfilePage} />
+      <ProtectedRoute path="/posts" component={PostsPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

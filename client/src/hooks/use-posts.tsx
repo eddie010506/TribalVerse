@@ -1,8 +1,26 @@
 import { createContext, ReactNode, useContext } from "react";
-import { useQuery, useMutation, QueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, UseMutationResult } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getQueryFn, queryClient } from "../lib/queryClient";
-import { Post, PostWithUser } from "../types";
+
+// Define types inline to avoid import issues
+export interface Post {
+  id: number;
+  userId: number;
+  content: string;
+  imageUrl: string | null;
+  visibility: 'public' | 'followers' | 'friends';
+  autoDeleteAt: string | null;
+  createdAt: string;
+}
+
+export interface PostWithUser extends Post {
+  user: {
+    id: number;
+    username: string;
+    profilePicture: string | null;
+  };
+}
 
 type PostsContextType = {
   posts: PostWithUser[];
@@ -107,22 +125,4 @@ export function usePosts() {
     throw new Error("usePosts must be used within a PostsProvider");
   }
   return context;
-}
-
-export function useUserPosts(userId: number) {
-  const { toast } = useToast();
-  
-  return useQuery<PostWithUser[], Error>({
-    queryKey: ["/api/users", userId, "posts"],
-    queryFn: getQueryFn({ on401: "throw" }),
-    staleTime: 60 * 1000, // 1 minute
-    retry: 1,
-    onError: (error: Error) => {
-      toast({
-        title: "Error fetching posts",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 }
