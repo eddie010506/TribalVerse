@@ -7,7 +7,7 @@ import type {
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
-import { eq, desc, count, and } from "drizzle-orm";
+import { eq, ne, desc, count, and } from "drizzle-orm";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 
@@ -18,6 +18,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getAllUsersExcept(userId: number): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities' | 'profilePicture'>>): Promise<User | undefined>;
   setVerificationToken(userId: number, token: string): Promise<boolean>;
@@ -111,6 +112,13 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(eq(users.email, email));
     return user;
+  }
+  
+  async getAllUsersExcept(userId: number): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(users.id != userId);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {

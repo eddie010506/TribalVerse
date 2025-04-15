@@ -1556,7 +1556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const similarUsers = await findSimilarUsers(
         currentUser.hobbies || "",
         currentUser.interests || "",
-        allUsers.map(u => ({
+        allUsers.map((u: any) => ({
           id: u.id,
           username: u.username,
           hobbies: u.hobbies,
@@ -1590,7 +1590,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messages = await storage.getMessagesByRoomId(roomId);
       
       // Get all participants
-      const participantIds = [...new Set(messages.map(m => m.userId))];
+      const participantIdsSet = new Set(messages.map(m => m.userId));
+      const participantIds = Array.from(participantIdsSet);
       const chatParticipantCount = participantIds.length;
       
       // Only make recommendations for active rooms with multiple participants
