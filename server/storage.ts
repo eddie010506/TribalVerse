@@ -1,8 +1,9 @@
-import { users, chatRooms, messages, follows, friendRequests, notifications, roomInvitations, posts } from "@shared/schema";
+import { users, chatRooms, messages, follows, friendRequests, notifications, roomInvitations, posts, comments, postLikes } from "@shared/schema";
 import type { 
   User, InsertUser, ChatRoom, InsertChatRoom, Message, InsertMessage, MessageWithUser,
   Follow, InsertFollow, FriendRequest, InsertFriendRequest, Notification, InsertNotification,
-  RoomInvitation, InsertRoomInvitation, Post, InsertPost, PostWithUser
+  RoomInvitation, InsertRoomInvitation, Post, InsertPost, PostWithUser,
+  Comment, InsertComment, CommentWithUser, PostLike, InsertPostLike
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
@@ -770,6 +771,16 @@ export class DatabaseStorage implements IStorage {
         return false;
       }
       
+      // Delete related comments
+      await db
+        .delete(comments)
+        .where(eq(comments.postId, postId));
+        
+      // Delete related likes
+      await db
+        .delete(postLikes)
+        .where(eq(postLikes.postId, postId));
+      
       // Delete the post
       await db
         .delete(posts)
@@ -780,6 +791,176 @@ export class DatabaseStorage implements IStorage {
       console.error("Error deleting post:", error);
       return false;
     }
+  }
+  
+  // Comment methods
+  async getPostComments(postId: number): Promise<CommentWithUser[]> {
+    const commentsData = await db
+      .select()
+      .from(comments)
+      .where(eq(comments.postId, postId))
+      .orderBy(comments.createdAt);
+    
+    const commentWithUsers = await Promise.all(
+      commentsData.map(async (comment) => {
+        const [user] = await db
+          .select({ 
+            id: users.id, 
+            username: users.username,
+            profilePicture: users.profilePicture
+          })
+          .from(users)
+          .where(eq(users.id, comment.userId));
+
+        return {
+          ...comment,
+          user: {
+            id: user?.id || 0,
+            username: user?.username || "Unknown User",
+            profilePicture: user?.profilePicture || null
+          },
+        };
+      })
+    );
+
+    return commentWithUsers;
+  }
+
+  async createComment(insertComment: InsertComment): Promise<Comment> {
+    const [comment] = await db
+      .insert(comments)
+      .values(insertComment)
+      .returning();
+      
+    // Create notification for post owner
+    const [post] = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.id, insertComment.postId));
+      
+    if (post && post.userId !== insertComment.userId) {
+      const [commenter] = await db
+        .select({ id: users.id, username: users.username })
+        .from(users)
+        .where(eq(users.id, insertComment.userId));
+      
+      if (commenter) {
+        await this.createNotification({
+          userId: post.userId,
+          type: 'comment',
+          actorId: insertComment.userId,
+          entityId: insertComment.postId,
+          entityType: 'post',
+          message: `${commenter.username} commented on your post.`,
+        });
+      }
+    }
+    
+    return comment;
+  }
+
+  async deleteComment(commentId: number, userId: number): Promise<boolean> {
+    try {
+      // First verify that the user is the creator of the comment
+      const [comment] = await db
+        .select()
+        .from(comments)
+        .where(eq(comments.id, commentId));
+      
+      if (!comment || comment.userId !== userId) {
+        return false;
+      }
+      
+      // Delete the comment
+      await db
+        .delete(comments)
+        .where(eq(comments.id, commentId));
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      return false;
+    }
+  }
+  
+  // Like methods
+  async likePost(userId: number, postId: number): Promise<PostLike | undefined> {
+    // Check if already liked
+    const isAlreadyLiked = await this.isPostLikedByUser(userId, postId);
+    if (isAlreadyLiked) {
+      return undefined;
+    }
+
+    const [like] = await db
+      .insert(postLikes)
+      .values({
+        userId,
+        postId,
+      })
+      .returning();
+    
+    // Create notification for post owner
+    const [post] = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.id, postId));
+      
+    if (post && post.userId !== userId) {
+      const [liker] = await db
+        .select({ id: users.id, username: users.username })
+        .from(users)
+        .where(eq(users.id, userId));
+      
+      if (liker) {
+        await this.createNotification({
+          userId: post.userId,
+          type: 'like',
+          actorId: userId,
+          entityId: postId,
+          entityType: 'post',
+          message: `${liker.username} liked your post.`,
+        });
+      }
+    }
+    
+    return like;
+  }
+
+  async unlikePost(userId: number, postId: number): Promise<boolean> {
+    try {
+      await db
+        .delete(postLikes)
+        .where(and(
+          eq(postLikes.userId, userId),
+          eq(postLikes.postId, postId)
+        ));
+      
+      return true;
+    } catch (error) {
+      console.error("Error unliking post:", error);
+      return false;
+    }
+  }
+
+  async isPostLikedByUser(userId: number, postId: number): Promise<boolean> {
+    const likes = await db
+      .select()
+      .from(postLikes)
+      .where(and(
+        eq(postLikes.userId, userId),
+        eq(postLikes.postId, postId)
+      ));
+    
+    return likes.length > 0;
+  }
+
+  async getPostLikes(postId: number): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(postLikes)
+      .where(eq(postLikes.postId, postId));
+    
+    return result[0]?.count || 0;
   }
 }
 
