@@ -34,14 +34,7 @@ export default function UserProfilePage() {
     isLoading, 
     error 
   } = useQuery<UserProfile>({
-    queryKey: ["/api/users", userId],
-    queryFn: async () => {
-      const res = await fetch(`/api/users/${userId}`);
-      if (!res.ok) {
-        throw new Error("Failed to fetch user profile");
-      }
-      return res.json();
-    },
+    queryKey: [`/api/users/${userId}`],
     enabled: !isNaN(userId),
   });
 
@@ -56,7 +49,7 @@ export default function UserProfilePage() {
         title: "Followed user",
         description: `You are now following ${profile?.username}`,
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/users", userId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
     },
     onError: (error: Error) => {
       toast({
@@ -78,7 +71,7 @@ export default function UserProfilePage() {
         title: "Unfollowed user",
         description: `You are no longer following ${profile?.username}`,
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/users", userId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
     },
     onError: (error: Error) => {
       toast({
@@ -106,7 +99,7 @@ export default function UserProfilePage() {
           <Button 
             variant="ghost" 
             className="mb-4" 
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/")}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Go Back
@@ -147,7 +140,7 @@ export default function UserProfilePage() {
         <Button 
           variant="ghost" 
           className="mb-4" 
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/")}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Go Back

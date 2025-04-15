@@ -19,6 +19,7 @@ function Router() {
       <ProtectedRoute path="/rooms/:id" component={ChatRoom} />
       <ProtectedRoute path="/create-room" component={CreateRoom} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
+      <ProtectedRoute path="/users/:id" component={UserProfilePage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
