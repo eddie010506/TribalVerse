@@ -171,14 +171,14 @@ function CreatePostForm() {
                 <span>Auto-delete after</span>
               </Label>
               <Select 
-                value={autoDeleteHours?.toString() || ""} 
-                onValueChange={(value) => setAutoDeleteHours(value ? parseInt(value) : undefined)}
+                value={autoDeleteHours?.toString() || "0"} 
+                onValueChange={(value) => setAutoDeleteHours(value === "0" ? undefined : parseInt(value))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Never (default)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Never (default)</SelectItem>
+                  <SelectItem value="0">Never (default)</SelectItem>
                   <SelectItem value="24">24 hours</SelectItem>
                   <SelectItem value="48">48 hours</SelectItem>
                 </SelectContent>
