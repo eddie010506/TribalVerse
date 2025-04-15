@@ -45,8 +45,7 @@ const registerSchema = insertUserSchema.pick({
     .email("Invalid email address")
     .refine(email => email.toLowerCase().endsWith('.edu'), {
       message: "Only .edu email addresses are allowed"
-    })
-    .optional(),
+    }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -269,7 +268,7 @@ export default function AuthPage() {
                           name="email"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Email Address (Optional)</FormLabel>
+                              <FormLabel>Email Address</FormLabel>
                               <FormControl>
                                 <Input 
                                   type="email" 
