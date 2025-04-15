@@ -3,18 +3,18 @@ import { Button } from '@/components/ui/button';
 import { MessageSquare, User, FileText, Menu, Home, LogOut } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { NotificationBell } from '@/components/notifications/notification-bell';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Sheet, 
   SheetContent, 
   SheetTrigger,
   SheetClose
 } from '@/components/ui/sheet';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 export function Header() {
   const { user, logoutMutation } = useAuth();
-  const isMobile = useIsMobile();
+  // For testing, always show mobile view
+  const [isMobileView, setIsMobileView] = useState(true);
   const [location] = useLocation();
 
   const handleLogout = () => {
@@ -42,13 +42,13 @@ export function Header() {
         
         {user ? (
           <>
-            {isMobile ? (
+            {isMobileView ? (
               <div className="flex items-center gap-3">
                 <NotificationBell />
                 <Sheet>
                   <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <Menu className="h-5 w-5" />
+                    <Button variant="ghost" size="icon" className="bg-primary-50 hover:bg-primary-100">
+                      <Menu className="h-6 w-6 text-primary" />
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="right" className="w-[250px] sm:w-[300px]">

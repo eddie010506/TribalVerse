@@ -376,8 +376,8 @@ function PostsFeed() {
 export default function PostsPage() {
   return (
     <PostsProvider>
-      <div className="container max-w-3xl py-6">
-        <h1 className="text-3xl font-bold mb-6">Feed</h1>
+      <div className="container max-w-3xl py-6 px-4 mx-auto">
+        <h1 className="text-3xl font-bold mb-6 text-center">Feed</h1>
         <CreatePostForm />
         <PostsFeed />
       </div>
