@@ -90,7 +90,7 @@ export async function findSimilarUsers(
     interests: string | null;
     currentActivities: string | null;
   }>
-): Promise<Array<{ id: number; username: string; matchReason: string; }>> {
+): Promise<{ users: Array<{ id: number; username: string; matchReason: string; profilePicture?: string | null; }> }> {
   try {
     const prompt = `
 I need to find users with similar interests and hobbies to a target user. 
@@ -107,17 +107,20 @@ Interests: ${user.interests || 'Not specified'}
 Current Activities: ${user.currentActivities || 'Not specified'}
 `).join('\n')}
 
-Please analyze the data and provide me with a JSON array of the top 3-5 most similar users (or fewer if there aren't that many good matches). For each match, include the user ID, username, and a brief explanation of why they're a good match. The format should be:
-[
-  {
-    "id": number,
-    "username": string,
-    "matchReason": string (brief explanation of the match)
-  },
-  ...
-]
+Please analyze the data and provide me with a JSON object containing an array called "users" with the top 3-5 most similar users (or fewer if there aren't that many good matches). For each match, include the user ID, username, and a brief explanation of why they're a good match. The format should be:
+{
+  "users": [
+    {
+      "id": number,
+      "username": string,
+      "matchReason": string (brief explanation of the match),
+      "profilePicture": null
+    },
+    ...
+  ]
+}
 
-Only include users that have some genuine similarity. If there are no good matches, return an empty array.
+Only include users that have some genuine similarity. If there are no good matches, return an object with an empty users array.
 `;
 
     const response: any = await anthropic.messages.create({
@@ -131,17 +134,23 @@ Only include users that have some genuine similarity. If there are no good match
     if (response.content && response.content.length > 0) {
       try {
         const jsonResponse = JSON.parse(response.content[0].text);
-        return jsonResponse;
+        // Ensure we return an object with a users array 
+        return {
+          users: Array.isArray(jsonResponse) ? jsonResponse.map(user => ({
+            ...user,
+            profilePicture: null
+          })) : (jsonResponse.users || [])
+        };
       } catch (parseError) {
         console.error('Error parsing JSON response:', parseError);
-        return [];
+        return { users: [] };
       }
     } else {
       throw new Error('Unexpected response format from Anthropic API');
     }
   } catch (error) {
     console.error('Error finding similar users:', error);
-    return [];
+    return { users: [] };
   }
 }
 
@@ -153,7 +162,7 @@ export async function recommendMeetupPlaces(
   activities: string,
   chatRoomName: string,
   chatParticipantCount: number
-): Promise<Array<{ name: string; type: string; reason: string; }>> {
+): Promise<{ places: Array<{ name: string; description: string; reasonToVisit: string; }> }> {
   try {
     const prompt = `
 I need to suggest places for students to meet up based on their interests and their chat room topic.
@@ -163,15 +172,17 @@ Number of participants: ${chatParticipantCount}
 Collective interests: "${interests}"
 Current activities: "${activities}"
 
-Please suggest 3-5 potential places on or near a college campus where these students could meet up based on their interests and the chat topic. Provide the results in JSON format like this:
-[
-  {
-    "name": string (name of the place),
-    "type": string (cafe, library, etc.),
-    "reason": string (why this place matches their interests/activities)
-  },
-  ...
-]
+Please suggest 3-5 potential places on or near a college campus where these students could meet up based on their interests and the chat topic. Provide the results as a JSON object with a "places" array like this:
+{
+  "places": [
+    {
+      "name": string (name of the place),
+      "description": string (brief description of the place),
+      "reasonToVisit": string (why this place matches their interests/activities)
+    },
+    ...
+  ]
+}
 `;
 
     const response: any = await anthropic.messages.create({
@@ -185,16 +196,23 @@ Please suggest 3-5 potential places on or near a college campus where these stud
     if (response.content && response.content.length > 0) {
       try {
         const jsonResponse = JSON.parse(response.content[0].text);
-        return jsonResponse;
+        // Ensure we return an object with a places array
+        return {
+          places: Array.isArray(jsonResponse) ? jsonResponse.map(place => ({
+            name: place.name,
+            description: place.type || place.description || "",
+            reasonToVisit: place.reason || place.reasonToVisit || ""
+          })) : (jsonResponse.places || [])
+        };
       } catch (parseError) {
         console.error('Error parsing JSON response:', parseError);
-        return [];
+        return { places: [] };
       }
     } else {
       throw new Error('Unexpected response format from Anthropic API');
     }
   } catch (error) {
     console.error('Error recommending meetup places:', error);
-    return [];
+    return { places: [] };
   }
 }
