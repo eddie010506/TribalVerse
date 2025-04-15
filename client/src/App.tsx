@@ -18,12 +18,12 @@ import { RoomInvitationsProvider } from "@/hooks/use-room-invitations";
 function Router() {
   return (
     <Switch>
-      <ProtectedRoute path="/" component={HomePage} />
+      <ProtectedRoute path="/" component={PostsPage} />
+      <ProtectedRoute path="/chat" component={HomePage} />
       <ProtectedRoute path="/rooms/:id" component={ChatRoom} />
       <ProtectedRoute path="/create-room" component={CreateRoom} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/users/:id" component={UserProfilePage} />
-      <ProtectedRoute path="/posts" component={PostsPage} />
       <ProtectedRoute path="/create-post" component={CreatePostPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />

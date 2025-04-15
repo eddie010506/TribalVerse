@@ -23,8 +23,8 @@ export function Header() {
 
   // Navigation items for the hamburger menu
   const navigationItems = user ? [
-    { href: "/", icon: <Home className="h-5 w-5 mr-3" />, label: "Home", active: location === "/" },
-    { href: "/posts", icon: <FileText className="h-5 w-5 mr-3" />, label: "Posts", active: location === "/posts" },
+    { href: "/", icon: <FileText className="h-5 w-5 mr-3" />, label: "Posts", active: location === "/" },
+    { href: "/chat", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Chat Rooms", active: location === "/chat" },
     { href: "/profile", icon: <User className="h-5 w-5 mr-3" />, label: "Profile", active: location === "/profile" },
   ] : [];
 
@@ -85,10 +85,10 @@ export function Header() {
             ) : (
               <div className="flex items-center gap-4">
                 <NotificationBell />
-                <Link href="/posts">
+                <Link href="/chat">
                   <div className="flex items-center text-sm text-neutral-600 cursor-pointer hover:text-primary">
-                    <FileText className="h-4 w-4 mr-1" />
-                    <span className="font-medium">Posts</span>
+                    <MessageSquare className="h-4 w-4 mr-1" />
+                    <span className="font-medium">Chat Rooms</span>
                   </div>
                 </Link>
                 <Link href="/profile">
