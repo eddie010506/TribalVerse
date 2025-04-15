@@ -848,15 +848,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/rooms", isAuthenticated, isEmailVerified, async (req, res) => {
     try {
+      // Check if this is a self-chat room
+      const isSelfChat = Boolean(req.body.isSelfChat);
+      
       const validatedData = insertChatRoomSchema.parse({
         ...req.body,
-        creatorId: req.user!.id
+        creatorId: req.user!.id,
+        isSelfChat: isSelfChat
       });
       
       const room = await storage.createChatRoom(validatedData);
       
-      // If invitees were provided, send invitations
-      if (req.body.invitees && Array.isArray(req.body.invitees)) {
+      // For self-chat rooms, we don't need to send invitations
+      // If invitees were provided and not a self-chat, send invitations
+      if (!isSelfChat && req.body.invitees && Array.isArray(req.body.invitees)) {
         const inviterId = req.user!.id;
         const roomId = room.id;
         
