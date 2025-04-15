@@ -386,10 +386,10 @@ export class DatabaseStorage implements IStorage {
 
   async unfollowUser(followerId: number, followingId: number): Promise<boolean> {
     try {
-      const result = await db
-        .delete(follows)
-        .where(eq(follows.followerId, followerId))
-        .where(eq(follows.followingId, followingId));
+      await pool.query(`
+        DELETE FROM follows 
+        WHERE "followerId" = $1 AND "followingId" = $2
+      `, [followerId, followingId]);
       
       return true;
     } catch (error) {
@@ -399,13 +399,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async isFollowing(followerId: number, followingId: number): Promise<boolean> {
-    const result = await db
-      .select()
-      .from(follows)
-      .where(eq(follows.followerId, followerId))
-      .where(eq(follows.followingId, followingId));
+    const result = await pool.query(`
+      SELECT * FROM follows 
+      WHERE "followerId" = $1 AND "followingId" = $2
+      LIMIT 1
+    `, [followerId, followingId]);
     
-    return result.length > 0;
+    return result.rows.length > 0;
   }
 
   // Notification methods
@@ -418,13 +418,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUnreadNotificationCount(userId: number): Promise<number> {
-    const result = await db
-      .select({ count: count() })
-      .from(notifications)
-      .where(eq(notifications.userId, userId))
-      .where(eq(notifications.isRead, false));
+    const result = await pool.query(`
+      SELECT COUNT(*) as count FROM notifications 
+      WHERE "userId" = $1 AND "isRead" = false
+    `, [userId]);
 
-    return result[0]?.count || 0;
+    return parseInt(result.rows[0]?.count || '0');
   }
 
   async markNotificationAsRead(notificationId: number): Promise<boolean> {
