@@ -364,14 +364,12 @@ export const postLikesRelations = relations(postLikes, ({ one }) => ({
   }),
 }));
 
-// User recommendations table to cache AI recommendations
+// User recommendations table to cache algorithm-based recommendations
 export const userRecommendations = pgTable("user_recommendations", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   recommendedUserId: integer("recommended_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  recommendedUsername: text("recommended_username").notNull(),
-  recommendedUserPicture: text("recommended_user_picture"),
-  reason: text("reason"),
+  matchReason: text("match_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
 });
@@ -379,9 +377,7 @@ export const userRecommendations = pgTable("user_recommendations", {
 export const insertUserRecommendationSchema = createInsertSchema(userRecommendations).pick({
   userId: true,
   recommendedUserId: true,
-  recommendedUsername: true,
-  recommendedUserPicture: true,
-  reason: true,
+  matchReason: true,
   expiresAt: true,
 });
 

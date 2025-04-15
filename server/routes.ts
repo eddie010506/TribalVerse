@@ -1586,7 +1586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: user.id,
               username: user.username,
               profilePicture: user.profilePicture,
-              matchReason: rec.matchReason
+              matchReason: rec.matchReason || "Similar interests"
             };
           })
         );
@@ -1604,22 +1604,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allUsers = await storage.getAllUsersExcept(userId);
       
       // User's interests and hobbies
-      const userHobbies = (currentUser.hobbies || "").toLowerCase().split(",").map(h => h.trim()).filter(h => h);
-      const userInterests = (currentUser.interests || "").toLowerCase().split(",").map(i => i.trim()).filter(i => i);
+      const userHobbies = (currentUser.hobbies || "").toLowerCase().split(",").map((h: string) => h.trim()).filter((h: string) => h);
+      const userInterests = (currentUser.interests || "").toLowerCase().split(",").map((i: string) => i.trim()).filter((i: string) => i);
       
       // Algorithm-based similarity calculation
       const scoredUsers = allUsers
         .map((otherUser: any) => {
           // Calculate similarity score
           let score = 0;
-          let matchReasons = [];
+          let matchReasons: string[] = [];
           
           // Parse other user's hobbies and interests
-          const otherHobbies = (otherUser.hobbies || "").toLowerCase().split(",").map(h => h.trim()).filter(h => h);
-          const otherInterests = (otherUser.interests || "").toLowerCase().split(",").map(i => i.trim()).filter(i => i);
+          const otherHobbies = (otherUser.hobbies || "").toLowerCase().split(",").map((h: string) => h.trim()).filter((h: string) => h);
+          const otherInterests = (otherUser.interests || "").toLowerCase().split(",").map((i: string) => i.trim()).filter((i: string) => i);
           
           // Calculate hobby matches
-          const hobbyMatches = userHobbies.filter(hobby => otherHobbies.some(oh => oh.includes(hobby) || hobby.includes(oh)));
+          const hobbyMatches = userHobbies.filter(hobby => otherHobbies.some((oh: string) => oh.includes(hobby) || hobby.includes(oh)));
           score += hobbyMatches.length * 2; // Hobbies are weighted higher
           
           if (hobbyMatches.length > 0) {
@@ -1631,7 +1631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Calculate interest matches
-          const interestMatches = userInterests.filter(interest => otherInterests.some(oi => oi.includes(interest) || interest.includes(oi)));
+          const interestMatches = userInterests.filter(interest => otherInterests.some((oi: string) => oi.includes(interest) || interest.includes(oi)));
           score += interestMatches.length;
           
           if (interestMatches.length > 0) {

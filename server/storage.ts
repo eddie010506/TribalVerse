@@ -1000,11 +1000,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUserRecommendation(recommendation: InsertUserRecommendation): Promise<UserRecommendation> {
-    const [newRecommendation] = await db.insert(userRecommendations)
-      .values(recommendation)
-      .returning();
-    
-    return newRecommendation;
+    try {
+      const [newRecommendation] = await db.insert(userRecommendations)
+        .values(recommendation)
+        .returning();
+      
+      return newRecommendation;
+    } catch (error) {
+      console.error("Error creating user recommendation:", error);
+      throw error;
+    }
   }
 
   async clearExpiredUserRecommendations(): Promise<void> {
