@@ -431,7 +431,11 @@ function PostCard({ post }: { post: PostWithUser }) {
           <img 
             src={post.imageUrl} 
             alt="Post attachment" 
-            className="mt-4 rounded-md max-h-[500px] w-auto object-contain" 
+            className="mt-4 rounded-md max-h-[500px] w-auto object-contain"
+            onError={(e) => {
+              console.error("Image load error:", post.imageUrl);
+              e.currentTarget.alt = "Image failed to load";
+            }}
           />
         )}
       </CardContent>

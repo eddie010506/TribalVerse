@@ -1143,7 +1143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     // Return the file path that can be used to access the image
-    const filePath = `/uploads/${req.file.filename}`;
+    const filePath = `/uploads/messages/${req.file.filename}`;
     res.json({ url: filePath });
   });
 
