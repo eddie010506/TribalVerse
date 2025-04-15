@@ -490,6 +490,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Friend Request API
+  
+  // Get received friend requests
+  app.get("/api/friend-requests/received", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const requests = await storage.getReceivedFriendRequests(userId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching received friend requests:", error);
+      res.status(500).json({ message: "Failed to fetch received friend requests" });
+    }
+  });
+  
+  // Get sent friend requests
+  app.get("/api/friend-requests/sent", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const requests = await storage.getSentFriendRequests(userId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching sent friend requests:", error);
+      res.status(500).json({ message: "Failed to fetch sent friend requests" });
+    }
+  });
+  
+  // Send a friend request
+  app.post("/api/friend-requests", isAuthenticated, isEmailVerified, async (req, res) => {
+    try {
+      const requesterId = req.user!.id;
+      const { receiverId } = req.body;
+      
+      if (requesterId === receiverId) {
+        return res.status(400).json({ message: "Cannot send friend request to yourself" });
+      }
+      
+      // Check if receiver exists
+      const receiver = await storage.getUser(receiverId);
+      if (!receiver) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if friend request already exists
+      const existingRequests = await storage.getFriendRequests(requesterId);
+      const existingRequest = existingRequests.find(
+        req => req.receiverId === receiverId || req.senderId === receiverId
+      );
+      
+      if (existingRequest) {
+        if (existingRequest.status === 'pending') {
+          return res.status(400).json({ message: "A friend request already exists between these users" });
+        } else if (existingRequest.status === 'accepted') {
+          return res.status(400).json({ message: "You are already friends with this user" });
+        }
+      }
+      
+      // Create friend request
+      const friendRequest = await storage.createFriendRequest({
+        senderId: requesterId,
+        receiverId
+      });
+      
+      // Create notification for receiver
+      await storage.createNotification({
+        userId: receiverId,
+        type: "friend_request",
+        message: `${req.user!.username} sent you a friend request`,
+        actorId: requesterId,
+        entityType: "friend_request",
+        entityId: friendRequest.id
+      });
+      
+      // Send a refresh_notifications WebSocket event
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'refresh_notifications'
+          }));
+        }
+      });
+      
+      res.status(201).json(friendRequest);
+    } catch (error) {
+      console.error("Error sending friend request:", error);
+      res.status(500).json({ message: "Failed to send friend request" });
+    }
+  });
+  
+  // Respond to a friend request (accept or reject)
+  app.patch("/api/friend-requests/:id", isAuthenticated, async (req, res) => {
+    try {
+      const requestId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      const { status } = req.body;
+      
+      if (status !== 'accepted' && status !== 'rejected') {
+        return res.status(400).json({ message: "Status must be 'accepted' or 'rejected'" });
+      }
+      
+      // Check if request exists and user is the receiver
+      const requests = await storage.getReceivedFriendRequests(userId);
+      const request = requests.find(req => req.id === requestId);
+      
+      if (!request) {
+        return res.status(404).json({ message: "Friend request not found or you're not authorized to respond" });
+      }
+      
+      // Update request status
+      const updatedRequest = await storage.respondToFriendRequest(requestId, status);
+      if (!updatedRequest) {
+        return res.status(400).json({ message: "Failed to respond to friend request" });
+      }
+      
+      // Create notification for sender
+      await storage.createNotification({
+        userId: request.senderId,
+        type: "friend_request_response",
+        message: status === 'accepted' 
+          ? `${req.user!.username} accepted your friend request` 
+          : `${req.user!.username} declined your friend request`,
+        actorId: userId,
+        entityType: "friend_request",
+        entityId: requestId
+      });
+      
+      // Send a refresh_notifications WebSocket event
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'refresh_notifications'
+          }));
+        }
+      });
+      
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error("Error responding to friend request:", error);
+      res.status(500).json({ message: "Failed to respond to friend request" });
+    }
+  });
+  
   // Get unread notification count
   app.get("/api/notifications/count", isAuthenticated, async (req, res) => {
     try {

@@ -9,10 +9,58 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import React, { useState, useEffect } from "react";
-import { Loader2, Save, Edit, Mail, CheckCircle, XCircle, SendHorizontal, AlertCircle } from "lucide-react";
+import { Loader2, Save, Edit, Mail, CheckCircle, XCircle, SendHorizontal, AlertCircle, Users, UserCheck, Heart } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useFollows } from "@/hooks/use-follows";
+import { useFriendRequests } from "@/hooks/use-friend-requests";
+import { FriendRequestList } from "@/components/social/friend-request-list";
+import { FollowList } from "@/components/social/follow-list";
+
+// Social components for the different tabs
+function SocialFriendRequests({ userId }: { userId?: number }) {
+  const { receivedRequests, isLoading, acceptRequest, rejectRequest } = useFriendRequests();
+  
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Friend Requests</h3>
+      <FriendRequestList 
+        requests={receivedRequests} 
+        isLoading={isLoading} 
+        onAccept={acceptRequest}
+        onReject={rejectRequest}
+      />
+    </div>
+  );
+}
+
+function SocialFollowers({ userId }: { userId?: number }) {
+  const { followers, isLoading } = useFollows(userId);
+  
+  return (
+    <FollowList 
+      users={followers} 
+      isLoading={isLoading}
+      emptyMessage="You don't have any followers yet"
+      title="People Following You"
+    />
+  );
+}
+
+function SocialFollowing({ userId }: { userId?: number }) {
+  const { following, isLoading } = useFollows(userId);
+  
+  return (
+    <FollowList 
+      users={following} 
+      isLoading={isLoading}
+      emptyMessage="You aren't following anyone yet"
+      title="People You Follow"
+    />
+  );
+}
 
 interface ProfileData {
   id: number;
@@ -322,6 +370,50 @@ export default function ProfilePage() {
                 </AlertDescription>
               </Alert>
             )}
+          </CardContent>
+        </Card>
+        
+        {/* Social Interactions Card */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Social Connections
+            </CardTitle>
+            <CardDescription>
+              Your followers, friends, and friend requests
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <Tabs defaultValue="requests">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="requests" className="flex items-center gap-1">
+                  <UserCheck className="h-4 w-4" />
+                  Requests
+                </TabsTrigger>
+                <TabsTrigger value="followers" className="flex items-center gap-1">
+                  <Heart className="h-4 w-4" />
+                  Followers
+                </TabsTrigger>
+                <TabsTrigger value="following" className="flex items-center gap-1">
+                  <Users className="h-4 w-4" />
+                  Following
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="requests" className="mt-4">
+                <SocialFriendRequests userId={profile?.id} />
+              </TabsContent>
+              
+              <TabsContent value="followers" className="mt-4">
+                <SocialFollowers userId={profile?.id} />
+              </TabsContent>
+              
+              <TabsContent value="following" className="mt-4">
+                <SocialFollowing userId={profile?.id} />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
         

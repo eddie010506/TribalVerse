@@ -1,12 +1,17 @@
-import { FriendRequest } from "@shared/schema";
+import { FriendRequest, User } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, UserCheck, UserX } from "lucide-react";
 import { Link } from "wouter";
 
+// Extended FriendRequest type that includes sender info
+type FriendRequestWithUser = FriendRequest & {
+  sender?: Pick<User, 'id' | 'username' | 'profilePicture'>;
+};
+
 interface FriendRequestListProps {
-  requests: FriendRequest[];
+  requests: FriendRequestWithUser[];
   isLoading: boolean;
   onAccept: (requestId: number) => void;
   onReject: (requestId: number) => void;
@@ -42,17 +47,17 @@ export function FriendRequestList({
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
                 <AvatarImage
-                  src={request.requester?.profilePicture || undefined}
-                  alt={request.requester?.username || "User"}
+                  src={request.sender?.profilePicture || undefined}
+                  alt={request.sender?.username || "User"}
                 />
                 <AvatarFallback>
-                  {request.requester?.username.substring(0, 2).toUpperCase() || "U"}
+                  {request.sender?.username?.substring(0, 2).toUpperCase() || "U"}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <Link href={`/user/${request.requesterId}`}>
+                <Link href={`/user/${request.senderId}`}>
                   <span className="font-medium hover:underline cursor-pointer">
-                    {request.requester?.username}
+                    {request.sender?.username || "User"}
                   </span>
                 </Link>
                 <p className="text-sm text-muted-foreground">
