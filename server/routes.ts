@@ -248,6 +248,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Failed to follow user or already following" });
       }
       
+      // Create a notification for the followed user
+      await storage.createNotification({
+        userId: followingId,
+        type: "follow",
+        message: `${req.user!.username} started following you`,
+        actorId: followerId,
+        entityType: "user",
+        entityId: followerId
+      });
+      
       res.status(201).json({ 
         message: `You are now following ${targetUser.username}`,
         following: true
@@ -340,6 +350,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!follow) {
         return res.status(400).json({ message: "Already following or unable to follow" });
       }
+      
+      // Create a notification for the followed user
+      await storage.createNotification({
+        userId: followingId,
+        type: "follow",
+        message: `${req.user!.username} started following you`,
+        actorId: followerId,
+        entityType: "user",
+        entityId: followerId
+      });
       
       res.json({ message: "Successfully followed user", follow });
     } catch (error) {
@@ -642,6 +662,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 // Get user with profile picture
                 const userInfo = await storage.getUser(clientInfo.userId);
                 
+                // Get users who are in the room to send notifications
+                // For simplicity, let's get all users with recent messages in the room
+                const messages = await storage.getMessagesByRoomId(data.roomId);
+                const userIds = new Set<number>();
+                
+                messages.forEach(msg => {
+                  if (msg.userId !== clientInfo.userId) { // Don't notify the sender
+                    userIds.add(msg.userId);
+                  }
+                });
+                
+                // Create notifications for each user
+                for (const userId of userIds) {
+                  await storage.createNotification({
+                    userId,
+                    type: "message",
+                    message: `${clientInfo.username} sent a message in ${data.roomName || "a chat room"}`,
+                    actorId: clientInfo.userId,
+                    entityType: "message",
+                    entityId: newMessage.id
+                  });
+                }
+                
                 // Broadcast to all clients in the same room
                 const messageWithUser = {
                   ...newMessage,
@@ -658,6 +701,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       type: 'new_message',
                       roomId: data.roomId,
                       message: messageWithUser
+                    }));
+                    
+                    // Also send a refresh notifications event to all clients
+                    client.send(JSON.stringify({
+                      type: 'refresh_notifications'
                     }));
                   }
                 });

@@ -189,6 +189,7 @@ export const insertNotificationSchema = createInsertSchema(notifications).pick({
   entityId: true,
   entityType: true,
   message: true,
+  isRead: true,
 });
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
