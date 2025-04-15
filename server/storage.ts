@@ -59,6 +59,12 @@ export interface IStorage {
   createRoomInvitation(invitation: InsertRoomInvitation): Promise<RoomInvitation>;
   respondToRoomInvitation(invitationId: number, status: 'accepted' | 'declined'): Promise<RoomInvitation | undefined>;
   
+  // Post methods
+  getPosts(currentUserId: number): Promise<PostWithUser[]>;
+  getPostsByUser(userId: number, currentUserId: number): Promise<PostWithUser[]>;
+  createPost(post: InsertPost): Promise<Post>;
+  deletePost(postId: number, userId: number): Promise<boolean>;
+  
   // Session store
   sessionStore: any;
 }

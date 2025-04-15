@@ -43,6 +43,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   actorNotifications: many(notifications, { relationName: "actor" }),
   sentRoomInvitations: many(roomInvitations, { relationName: "inviter" }),
   receivedRoomInvitations: many(roomInvitations, { relationName: "invitee" }),
+  posts: many(posts),
 }));
 
 // Chat room schema
@@ -247,3 +248,42 @@ export const roomInvitationsRelations = relations(roomInvitations, ({ one }) => 
     references: [users.id],
   }),
 }));
+
+// Posts schema
+export const posts = pgTable("posts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"),
+  visibility: text("visibility").notNull().default("public"), // public, followers, friends
+  autoDeleteAt: timestamp("auto_delete_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPostSchema = createInsertSchema(posts).pick({
+  userId: true,
+  content: true,
+  imageUrl: true,
+  visibility: true,
+  autoDeleteAt: true,
+});
+
+export type InsertPost = z.infer<typeof insertPostSchema>;
+export type Post = typeof posts.$inferSelect;
+
+// Post relations
+export const postsRelations = relations(posts, ({ one }) => ({
+  user: one(users, {
+    fields: [posts.userId],
+    references: [users.id],
+  }),
+}));
+
+// Post with user info for display
+export type PostWithUser = Post & {
+  user: {
+    id: number;
+    username: string;
+    profilePicture?: string | null;
+  };
+};
