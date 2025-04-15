@@ -312,7 +312,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Follow methods
-  async getFollowers(userId: number): Promise<User[]> {
+  async getFollowers(userId: number): Promise<Partial<User>[]> {
     const result = await db
       .select({
         id: users.id,
@@ -328,7 +328,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getFollowing(userId: number): Promise<User[]> {
+  async getFollowing(userId: number): Promise<Partial<User>[]> {
     const result = await db
       .select({
         id: users.id,

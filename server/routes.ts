@@ -290,6 +290,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user profile by ID
+  app.get("/api/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      // Get the user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if the current user is following this user
+      const currentUserId = req.user!.id;
+      const isFollowing = await storage.isFollowing(currentUserId, userId);
+      
+      // Return a filtered profile without sensitive information
+      const { password, verificationToken, email, emailVerified, ...publicProfile } = user;
+      
+      res.json({
+        ...publicProfile,
+        isFollowing
+      });
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      res.status(500).json({ message: "Failed to fetch user profile" });
+    }
+  });
+
   // Get followers for a user
   app.get("/api/users/:id/followers", isAuthenticated, async (req, res) => {
     try {

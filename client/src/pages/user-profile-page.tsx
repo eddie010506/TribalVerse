@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -122,8 +122,17 @@ export default function UserProfilePage() {
 
   // Prevent viewing own profile with this component
   if (user?.id === profile.id) {
-    navigate("/profile");
-    return null;
+    // Use Effect for navigation to avoid returning null in component
+    useEffect(() => {
+      navigate("/profile");
+    }, [navigate, profile?.id]);
+    
+    // Show a loading state while redirecting
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   const handleFollowToggle = () => {
