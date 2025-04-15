@@ -11,7 +11,13 @@ import { insertChatRoomSchema, insertMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import { sendVerificationEmail } from "./email";
-import { sendMessageToAI, initializeAIConversation } from "./anthropic";
+import { 
+  sendMessageToAI, 
+  initializeAIConversation, 
+  initializeCustomAIConversation,
+  findSimilarUsers,
+  recommendMeetupPlaces
+} from "./anthropic";
 
 // Configure multer for image uploads
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -1469,9 +1475,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Chatbot API Routes
-  app.post("/api/ai/chat", isAuthenticated, isEmailVerified, async (req, res) => {
+  app.post("/api/ai/chat", isAuthenticated, async (req, res) => {
     try {
-      const { message, conversationHistory } = req.body;
+      const { message, conversationHistory, systemInstruction } = req.body;
       
       if (!message || typeof message !== 'string' || message.trim() === '') {
         return res.status(400).json({ message: "Message is required" });
@@ -1486,8 +1492,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid conversation history format" });
       }
       
-      // Get AI response
-      const aiResponse = await sendMessageToAI(message, conversationHistory);
+      // Get AI response with optional custom system instruction
+      const aiResponse = await sendMessageToAI(message, conversationHistory, systemInstruction);
       
       res.json({ response: aiResponse });
     } catch (error) {
@@ -1496,13 +1502,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/ai/initialize", isAuthenticated, isEmailVerified, async (req, res) => {
+  // Initialize AI conversation with default instructions
+  app.get("/api/ai/initialize", isAuthenticated, async (req, res) => {
     try {
       const introduction = await initializeAIConversation();
       res.json({ introduction });
     } catch (error) {
       console.error("Error initializing AI conversation:", error);
       res.status(500).json({ message: "Failed to initialize AI conversation" });
+    }
+  });
+  
+  // Initialize AI conversation with custom instructions
+  app.post("/api/ai/initialize-custom", isAuthenticated, async (req, res) => {
+    try {
+      const { systemInstruction } = req.body;
+      
+      if (!systemInstruction || typeof systemInstruction !== 'string') {
+        return res.status(400).json({ message: "System instruction is required" });
+      }
+      
+      const introduction = await initializeCustomAIConversation(systemInstruction);
+      res.json({ introduction });
+    } catch (error) {
+      console.error("Error initializing custom AI conversation:", error);
+      res.status(500).json({ message: "Failed to initialize custom AI conversation" });
+    }
+  });
+  
+  // Get similar users based on interests/hobbies
+  app.get("/api/ai/similar-users", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Get current user
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Make sure user has interests and hobbies
+      if (!currentUser.hobbies && !currentUser.interests) {
+        return res.status(400).json({ 
+          message: "You need to set up your hobbies and interests first",
+          isProfileComplete: false
+        });
+      }
+      
+      // Get all users except current user
+      const allUsers = await storage.getAllUsersExcept(userId);
+      
+      // Find similar users using AI
+      const similarUsers = await findSimilarUsers(
+        currentUser.hobbies || "",
+        currentUser.interests || "",
+        allUsers.map(u => ({
+          id: u.id,
+          username: u.username,
+          hobbies: u.hobbies,
+          interests: u.interests,
+          currentActivities: u.currentActivities
+        }))
+      );
+      
+      res.json(similarUsers);
+    } catch (error) {
+      console.error("Error finding similar users:", error);
+      res.status(500).json({ message: "Failed to find similar users" });
+    }
+  });
+  
+  // Get meetup place recommendations for a chat room
+  app.get("/api/ai/meetup-recommendations/:roomId", isAuthenticated, async (req, res) => {
+    try {
+      const roomId = parseInt(req.params.roomId);
+      if (isNaN(roomId)) {
+        return res.status(400).json({ message: "Invalid room ID" });
+      }
+      
+      // Get the chat room
+      const room = await storage.getChatRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Chat room not found" });
+      }
+      
+      // Get messages to analyze room activity
+      const messages = await storage.getMessagesByRoomId(roomId);
+      
+      // Get all participants
+      const participantIds = [...new Set(messages.map(m => m.userId))];
+      const chatParticipantCount = participantIds.length;
+      
+      // Only make recommendations for active rooms with multiple participants
+      if (messages.length < 20 || chatParticipantCount < 2) {
+        return res.status(400).json({
+          message: "The chat room needs to be more active to get meetup recommendations",
+          isActive: false
+        });
+      }
+      
+      // Get participant profiles
+      const participants = [];
+      for (const pid of participantIds) {
+        const user = await storage.getUser(pid);
+        if (user) {
+          participants.push(user);
+        }
+      }
+      
+      // Combine interests and activities
+      const allInterests = participants
+        .map(p => p.interests)
+        .filter(Boolean)
+        .join(", ");
+        
+      const allActivities = participants
+        .map(p => p.currentActivities)
+        .filter(Boolean)
+        .join(", ");
+      
+      // Get meetup recommendations using AI
+      const recommendations = await recommendMeetupPlaces(
+        allInterests,
+        allActivities,
+        room.name,
+        chatParticipantCount
+      );
+      
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error getting meetup recommendations:", error);
+      res.status(500).json({ message: "Failed to get meetup recommendations" });
     }
   });
 
