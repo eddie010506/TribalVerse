@@ -1,13 +1,14 @@
-import { users, chatRooms, messages, follows, friendRequests, notifications, roomInvitations, posts, comments, postLikes } from "@shared/schema";
+import { users, chatRooms, messages, follows, friendRequests, notifications, roomInvitations, posts, comments, postLikes, userRecommendations, placeRecommendations } from "@shared/schema";
 import type { 
   User, InsertUser, ChatRoom, InsertChatRoom, Message, InsertMessage, MessageWithUser,
   Follow, InsertFollow, FriendRequest, InsertFriendRequest, Notification, InsertNotification,
   RoomInvitation, InsertRoomInvitation, Post, InsertPost, PostWithUser,
-  Comment, InsertComment, CommentWithUser, PostLike, InsertPostLike
+  Comment, InsertComment, CommentWithUser, PostLike, InsertPostLike,
+  UserRecommendation, InsertUserRecommendation, PlaceRecommendation, InsertPlaceRecommendation
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
-import { eq, ne, desc, count, and } from "drizzle-orm";
+import { eq, ne, desc, count, and, gt, lt } from "drizzle-orm";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 
@@ -77,6 +78,14 @@ export interface IStorage {
   unlikePost(userId: number, postId: number): Promise<boolean>;
   isPostLikedByUser(userId: number, postId: number): Promise<boolean>;
   getPostLikes(postId: number): Promise<number>;
+  
+  // Recommendation methods
+  getSimilarUserRecommendations(userId: number): Promise<UserRecommendation[]>;
+  createUserRecommendation(recommendation: InsertUserRecommendation): Promise<UserRecommendation>;
+  clearExpiredUserRecommendations(): Promise<void>;
+  getPlaceRecommendations(roomId: number): Promise<PlaceRecommendation[]>;
+  createPlaceRecommendation(recommendation: InsertPlaceRecommendation): Promise<PlaceRecommendation>;
+  clearExpiredPlaceRecommendations(): Promise<void>;
   
   // Session store
   sessionStore: any;
@@ -976,6 +985,56 @@ export class DatabaseStorage implements IStorage {
       .where(eq(postLikes.postId, postId));
     
     return result[0]?.count || 0;
+  }
+
+  // User recommendations methods
+  async getSimilarUserRecommendations(userId: number): Promise<UserRecommendation[]> {
+    return await db.select()
+      .from(userRecommendations)
+      .where(
+        and(
+          eq(userRecommendations.userId, userId),
+          gt(userRecommendations.expiresAt, new Date())
+        )
+      );
+  }
+
+  async createUserRecommendation(recommendation: InsertUserRecommendation): Promise<UserRecommendation> {
+    const [newRecommendation] = await db.insert(userRecommendations)
+      .values(recommendation)
+      .returning();
+    
+    return newRecommendation;
+  }
+
+  async clearExpiredUserRecommendations(): Promise<void> {
+    await db.delete(userRecommendations)
+      .where(lt(userRecommendations.expiresAt, new Date()));
+  }
+
+  // Place recommendations methods
+  async getPlaceRecommendations(roomId: number): Promise<PlaceRecommendation[]> {
+    return await db.select()
+      .from(placeRecommendations)
+      .where(
+        and(
+          eq(placeRecommendations.roomId, roomId),
+          gt(placeRecommendations.expiresAt, new Date())
+        )
+      );
+  }
+
+  async createPlaceRecommendation(recommendation: InsertPlaceRecommendation): Promise<PlaceRecommendation> {
+    const [newRecommendation] = await db.insert(placeRecommendations)
+      .values(recommendation)
+      .returning();
+    
+    return newRecommendation;
+  }
+
+  async clearExpiredPlaceRecommendations(): Promise<void> {
+    await db.delete(placeRecommendations)
+      .where(lt(placeRecommendations.expiresAt, new Date()));
   }
 }
 
