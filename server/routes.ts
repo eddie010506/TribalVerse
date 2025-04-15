@@ -1566,9 +1566,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       res.json(similarUsers);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error finding similar users:", error);
-      res.status(500).json({ message: "Failed to find similar users" });
+      
+      // Check for rate limit errors
+      if (error.status === 429 || (error.error && error.error.type === 'rate_limit_error')) {
+        res.status(429).json({ 
+          message: "Rate limit exceeded. Please try again in a minute.",
+          retryAfter: parseInt(error.headers?.['retry-after'] || '60')
+        });
+      } else {
+        res.status(500).json({ message: "Failed to find similar users" });
+      }
     }
   });
   
@@ -1634,9 +1643,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       res.json(recommendations);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error getting meetup recommendations:", error);
-      res.status(500).json({ message: "Failed to get meetup recommendations" });
+      
+      // Check for rate limit errors
+      if (error.status === 429 || (error.error && error.error.type === 'rate_limit_error')) {
+        res.status(429).json({ 
+          message: "Rate limit exceeded. Please try again in a minute.",
+          retryAfter: parseInt(error.headers?.['retry-after'] || '60')
+        });
+      } else {
+        res.status(500).json({ message: "Failed to get meetup recommendations" });
+      }
     }
   });
 

@@ -24,6 +24,13 @@ export function useAIRecommendations() {
   const getSimilarUsersMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('GET', '/api/ai/similar-users');
+      if (!response.ok) {
+        // Handle rate limit errors specially
+        if (response.status === 429) {
+          throw new Error("Rate limit exceeded. Please try again in a minute.");
+        }
+        throw new Error(`Error: ${response.statusText}`);
+      }
       return await response.json();
     },
     onSuccess: (data) => {
@@ -42,6 +49,13 @@ export function useAIRecommendations() {
   const getMeetupRecommendationsMutation = useMutation({
     mutationFn: async (roomId: number) => {
       const response = await apiRequest('GET', `/api/ai/meetup-recommendations/${roomId}`);
+      if (!response.ok) {
+        // Handle rate limit errors specially
+        if (response.status === 429) {
+          throw new Error("Rate limit exceeded. Please try again in a minute.");
+        }
+        throw new Error(`Error: ${response.statusText}`);
+      }
       return await response.json();
     },
     onSuccess: (data) => {
