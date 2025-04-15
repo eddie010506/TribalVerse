@@ -65,6 +65,17 @@ export interface IStorage {
   createPost(post: InsertPost): Promise<Post>;
   deletePost(postId: number, userId: number): Promise<boolean>;
   
+  // Comment methods
+  getPostComments(postId: number): Promise<CommentWithUser[]>;
+  createComment(comment: InsertComment): Promise<Comment>;
+  deleteComment(commentId: number, userId: number): Promise<boolean>;
+  
+  // Like methods
+  likePost(userId: number, postId: number): Promise<PostLike | undefined>;
+  unlikePost(userId: number, postId: number): Promise<boolean>;
+  isPostLikedByUser(userId: number, postId: number): Promise<boolean>;
+  getPostLikes(postId: number): Promise<number>;
+  
   // Session store
   sessionStore: any;
 }

@@ -272,7 +272,7 @@ export type InsertPost = z.infer<typeof insertPostSchema>;
 export type Post = typeof posts.$inferSelect;
 
 // Post relations
-export const postsRelations = relations(posts, ({ one }) => ({
+export const postsRelations = relations(posts, ({ one, many }) => ({
   user: one(users, {
     fields: [posts.userId],
     references: [users.id],
@@ -286,4 +286,85 @@ export type PostWithUser = Post & {
     username: string;
     profilePicture?: string | null;
   };
+  comments?: Comment[];
+  likes?: PostLike[];
+  commentCount?: number;
+  likeCount?: number;
+  isLikedByCurrentUser?: boolean;
 };
+
+// Comments table
+export const comments = pgTable("comments", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  postId: integer("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCommentSchema = createInsertSchema(comments).pick({
+  content: true,
+  userId: true,
+  postId: true,
+});
+
+export type InsertComment = z.infer<typeof insertCommentSchema>;
+export type Comment = typeof comments.$inferSelect;
+
+// Comment relations
+export const commentsRelations = relations(comments, ({ one }) => ({
+  user: one(users, {
+    fields: [comments.userId],
+    references: [users.id],
+  }),
+  post: one(posts, {
+    fields: [comments.postId],
+    references: [posts.id],
+  }),
+}));
+
+// Comment with user info for display
+export type CommentWithUser = Comment & {
+  user: {
+    id: number;
+    username: string;
+    profilePicture?: string | null;
+  };
+};
+
+// Post likes table
+export const postLikes = pgTable("post_likes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  postId: integer("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  uniqueUserPost: unique().on(t.userId, t.postId),
+}));
+
+export const insertPostLikeSchema = createInsertSchema(postLikes).pick({
+  userId: true,
+  postId: true,
+});
+
+export type InsertPostLike = z.infer<typeof insertPostLikeSchema>;
+export type PostLike = typeof postLikes.$inferSelect;
+
+// Post like relations
+export const postLikesRelations = relations(postLikes, ({ one }) => ({
+  user: one(users, {
+    fields: [postLikes.userId],
+    references: [users.id],
+  }),
+  post: one(posts, {
+    fields: [postLikes.postId],
+    references: [posts.id],
+  }),
+}));
+
+// Update post relations to include comments and likes
+export const extendedPostsRelations = relations(posts, ({ one, many }) => ({
+  ...postsRelations.relations,
+  comments: many(comments),
+  likes: many(postLikes),
+}));
