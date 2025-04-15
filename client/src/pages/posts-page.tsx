@@ -281,17 +281,33 @@ function PostCard({ post }: { post: PostWithUser }) {
   
   const handleLike = () => {
     if (isLiked) {
+      // Optimistically update UI immediately for unlike
+      setIsLiked(false);
+      setLikeCount(prev => prev - 1);
+      
       unlikePostMutation.mutate(post.id, {
-        onSuccess: () => {
-          setIsLiked(false);
-          setLikeCount(prev => prev - 1);
+        // If an error happens (and it's not just "not liked"), revert the UI
+        onError: (error: Error) => {
+          // Don't revert if it's a "not liked" error
+          if (error.message !== "You have not liked this post") {
+            setIsLiked(true);
+            setLikeCount(prev => prev + 1);
+          }
         }
       });
     } else {
+      // Optimistically update UI immediately for like
+      setIsLiked(true);
+      setLikeCount(prev => prev + 1);
+      
       likePostMutation.mutate(post.id, {
-        onSuccess: () => {
-          setIsLiked(true);
-          setLikeCount(prev => prev + 1);
+        // If an error happens (and it's not just "already liked"), revert the UI
+        onError: (error: Error) => {
+          // Don't revert if it's an "already liked" error
+          if (error.message !== "Already liked this post") {
+            setIsLiked(false);
+            setLikeCount(prev => prev - 1);
+          }
         }
       });
     }

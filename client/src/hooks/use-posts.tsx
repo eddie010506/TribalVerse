@@ -127,43 +127,73 @@ export function PostsProvider({ children }: { children: ReactNode }) {
 
   const likePostMutation = useMutation({
     mutationFn: async (postId: number) => {
-      const res = await apiRequest("POST", `/api/posts/${postId}/like`);
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to like post");
+      try {
+        const res = await apiRequest("POST", `/api/posts/${postId}/like`);
+        // Handle "already liked" as a success case, not an error
+        if (res.status === 400) {
+          const errorData = await res.json();
+          if (errorData.message === "Already liked this post") {
+            return { alreadyLiked: true };
+          }
+        }
+        
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.message || "Failed to like post");
+        }
+        return await res.json();
+      } catch (error) {
+        throw error;
       }
-      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error liking post",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Only show error toasts for errors that aren't just "already liked"
+      if (error.message !== "Already liked this post") {
+        toast({
+          title: "Error liking post",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     },
   });
 
   const unlikePostMutation = useMutation({
     mutationFn: async (postId: number) => {
-      const res = await apiRequest("DELETE", `/api/posts/${postId}/like`);
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to unlike post");
+      try {
+        const res = await apiRequest("DELETE", `/api/posts/${postId}/like`);
+        // Handle "not liked" as a success case, not an error
+        if (res.status === 400) {
+          const errorData = await res.json();
+          if (errorData.message === "You have not liked this post") {
+            return { notLiked: true };
+          }
+        }
+        
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.message || "Failed to unlike post");
+        }
+        return await res.json();
+      } catch (error) {
+        throw error;
       }
-      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error unliking post",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Only show error toasts for errors that aren't just "not liked"
+      if (error.message !== "You have not liked this post") {
+        toast({
+          title: "Error unliking post",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     },
   });
 
