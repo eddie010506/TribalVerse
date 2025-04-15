@@ -364,4 +364,63 @@ export const postLikesRelations = relations(postLikes, ({ one }) => ({
   }),
 }));
 
+// User recommendations table to cache AI recommendations
+export const userRecommendations = pgTable("user_recommendations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  recommendedUserId: integer("recommended_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  matchReason: text("match_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
+export const insertUserRecommendationSchema = createInsertSchema(userRecommendations).pick({
+  userId: true,
+  recommendedUserId: true,
+  matchReason: true,
+  expiresAt: true,
+});
+
+export type InsertUserRecommendation = z.infer<typeof insertUserRecommendationSchema>;
+export type UserRecommendation = typeof userRecommendations.$inferSelect;
+
+export const userRecommendationsRelations = relations(userRecommendations, ({ one }) => ({
+  user: one(users, {
+    fields: [userRecommendations.userId],
+    references: [users.id],
+  }),
+  recommendedUser: one(users, {
+    fields: [userRecommendations.recommendedUserId],
+    references: [users.id],
+  }),
+}));
+
+// Place recommendations table to cache AI recommendations
+export const placeRecommendations = pgTable("place_recommendations", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull().references(() => chatRooms.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
+export const insertPlaceRecommendationSchema = createInsertSchema(placeRecommendations).pick({
+  roomId: true,
+  name: true,
+  type: true,
+  reason: true,
+  expiresAt: true,
+});
+
+export type InsertPlaceRecommendation = z.infer<typeof insertPlaceRecommendationSchema>;
+export type PlaceRecommendation = typeof placeRecommendations.$inferSelect;
+
+export const placeRecommendationsRelations = relations(placeRecommendations, ({ one }) => ({
+  room: one(chatRooms, {
+    fields: [placeRecommendations.roomId],
+    references: [chatRooms.id],
+  }),
+}));
 
