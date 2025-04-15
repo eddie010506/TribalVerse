@@ -1,12 +1,12 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { WebSocketServer } from "ws";
 import WebSocket, { WebSocketServer } from "ws";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { pool } from "./db";
 import { insertChatRoomSchema, insertMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import { randomBytes } from "crypto";
@@ -475,6 +475,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Failed to update email:", error);
       res.status(500).json({ message: "Failed to update email" });
+    }
+  });
+
+  // User search API
+  app.get("/api/users/search", isAuthenticated, async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query || query.length < 2) {
+        return res.status(400).json({ message: "Search query must be at least 2 characters" });
+      }
+      
+      // Get all users via Drizzle
+      const users = await db.select({
+        id: schema.users.id,
+        username: schema.users.username,
+        profilePicture: schema.users.profilePicture
+      })
+      .from(schema.users)
+      .where(
+        and(
+          like(schema.users.username, `%${query}%`),
+          notEq(schema.users.id, req.user!.id)
+        )
+      )
+      .limit(10);
+      
+      res.json(users);
+    } catch (error) {
+      console.error("Error searching users:", error);
+      res.status(500).json({ message: "Failed to search users" });
     }
   });
 

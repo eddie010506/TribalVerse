@@ -22,15 +22,18 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { ArrowLeft, UserPlus } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Link } from 'wouter';
+import { UserSearch, User as UserSearchResult } from '@/components/social/user-search';
 
 // Room creation schema with validation
 const createRoomSchema = insertChatRoomSchema.pick({
@@ -45,6 +48,7 @@ export default function CreateRoom() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const [selectedUsers, setSelectedUsers] = useState<UserSearchResult[]>([]);
   
   // Form setup
   const form = useForm<z.infer<typeof createRoomSchema>>({
@@ -58,19 +62,26 @@ export default function CreateRoom() {
   // Create room mutation
   const createRoomMutation = useMutation({
     mutationFn: async (data: z.infer<typeof createRoomSchema>) => {
-      const roomData: InsertChatRoom = {
+      const roomData = {
         ...data,
         creatorId: user!.id,
+        invitees: selectedUsers.map(user => user.id)
       };
       
       const res = await apiRequest('POST', '/api/rooms', roomData);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to create room');
+      }
       return res.json() as Promise<ChatRoom>;
     },
     onSuccess: (newRoom) => {
       queryClient.invalidateQueries({ queryKey: ['/api/rooms'] });
       toast({
         title: 'Room created',
-        description: `"${newRoom.name}" has been created successfully.`,
+        description: selectedUsers.length > 0 
+          ? `"${newRoom.name}" has been created and invitations sent.`
+          : `"${newRoom.name}" has been created successfully.`,
       });
       navigate(`/rooms/${newRoom.id}`);
     },
@@ -82,6 +93,13 @@ export default function CreateRoom() {
       });
     },
   });
+  
+  // Handle adding a user to invite
+  const handleSelectUser = (user: UserSearchResult) => {
+    if (!selectedUsers.some(selected => selected.id === user.id)) {
+      setSelectedUsers(prev => [...prev, user]);
+    }
+  };
   
   // Form submission handler
   const onSubmit = (values: z.infer<typeof createRoomSchema>) => {
@@ -144,7 +162,25 @@ export default function CreateRoom() {
                     )}
                   />
                   
-                  <div className="flex justify-end space-x-2">
+                  <Separator className="my-4" />
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <UserPlus className="h-5 w-5 mr-2 text-muted-foreground" />
+                      <h3 className="text-lg font-medium">Invite users</h3>
+                    </div>
+                    <FormDescription>
+                      Search for users to invite to your new chat room (optional)
+                    </FormDescription>
+                    
+                    <UserSearch 
+                      onSelectUser={handleSelectUser}
+                      selectedUsers={selectedUsers}
+                      placeholder="Search for users to invite..."
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2 pt-4">
                     <Link href="/">
                       <Button variant="outline" type="button">
                         Cancel
