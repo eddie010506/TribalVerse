@@ -913,6 +913,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch room" });
     }
   });
+  
+  // Delete a chat room (only the creator can delete it)
+  app.delete("/api/rooms/:id", isAuthenticated, isEmailVerified, async (req, res) => {
+    try {
+      const roomId = parseInt(req.params.id);
+      if (isNaN(roomId)) {
+        return res.status(400).json({ message: "Invalid room ID" });
+      }
+      
+      const userId = req.user!.id;
+      
+      // Check if room exists first
+      const room = await storage.getChatRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      
+      // Check if user is the creator
+      if (room.createdBy !== userId) {
+        return res.status(403).json({ message: "You do not have permission to delete this room" });
+      }
+      
+      const success = await storage.deleteChatRoom(roomId, userId);
+      
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete chat room" });
+      }
+      
+      res.json({ message: "Chat room deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting chat room:", error);
+      res.status(500).json({ message: "Failed to delete chat room" });
+    }
+  });
 
   // Messages API
   app.get("/api/rooms/:id/messages", isAuthenticated, async (req, res) => {

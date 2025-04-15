@@ -26,6 +26,7 @@ export interface IStorage {
   getChatRooms(): Promise<ChatRoom[]>;
   getChatRoom(id: number): Promise<ChatRoom | undefined>;
   createChatRoom(room: InsertChatRoom): Promise<ChatRoom>;
+  deleteChatRoom(id: number, userId: number): Promise<boolean>;
   
   // Message methods
   getMessagesByRoomId(roomId: number): Promise<MessageWithUser[]>;
@@ -175,6 +176,36 @@ export class DatabaseStorage implements IStorage {
       .values(insertRoom)
       .returning();
     return room;
+  }
+  
+  async deleteChatRoom(id: number, userId: number): Promise<boolean> {
+    try {
+      // First verify that the user is the creator of the room
+      const room = await this.getChatRoom(id);
+      if (!room || room.createdBy !== userId) {
+        return false;
+      }
+      
+      // Delete all messages in the room first
+      await db
+        .delete(messages)
+        .where(eq(messages.roomId, id));
+      
+      // Delete all room invitations
+      await db
+        .delete(roomInvitations)
+        .where(eq(roomInvitations.roomId, id));
+      
+      // Delete the room
+      await db
+        .delete(chatRooms)
+        .where(eq(chatRooms.id, id));
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting chat room:", error);
+      return false;
+    }
   }
 
   // Message methods
