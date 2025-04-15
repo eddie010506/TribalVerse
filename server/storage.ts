@@ -5,7 +5,7 @@ import type {
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, and } from "drizzle-orm";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 
@@ -386,7 +386,7 @@ export class DatabaseStorage implements IStorage {
 
   async unfollowUser(followerId: number, followingId: number): Promise<boolean> {
     try {
-      await db
+      const result = await db
         .delete(follows)
         .where(eq(follows.followerId, followerId))
         .where(eq(follows.followingId, followingId));
@@ -399,13 +399,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async isFollowing(followerId: number, followingId: number): Promise<boolean> {
-    const [follow] = await db
+    const result = await db
       .select()
       .from(follows)
       .where(eq(follows.followerId, followerId))
       .where(eq(follows.followingId, followingId));
     
-    return !!follow;
+    return result.length > 0;
   }
 
   // Notification methods
