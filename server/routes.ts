@@ -1590,8 +1590,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messages = await storage.getMessagesByRoomId(roomId);
       
       // Get all participants
-      const participantIdsSet = new Set(messages.map(m => m.userId));
-      const participantIds = Array.from(participantIdsSet);
+      const seenParticipantIds = new Map<number, boolean>();
+      messages.forEach(m => {
+        seenParticipantIds.set(m.userId, true);
+      });
+      const participantIds = Array.from(seenParticipantIds.keys());
       const chatParticipantCount = participantIds.length;
       
       // Only make recommendations for active rooms with multiple participants

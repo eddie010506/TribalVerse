@@ -115,10 +115,17 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getAllUsersExcept(userId: number): Promise<User[]> {
-    return await db
-      .select()
-      .from(users)
-      .where(users.id != userId);
+    try {
+      const result = await pool.query(`
+        SELECT * FROM users 
+        WHERE id != $1
+      `, [userId]);
+      
+      return result.rows;
+    } catch (error) {
+      console.error("Error getting all users except:", error);
+      return [];
+    }
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
