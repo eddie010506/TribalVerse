@@ -369,7 +369,9 @@ export const userRecommendations = pgTable("user_recommendations", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   recommendedUserId: integer("recommended_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  matchReason: text("match_reason"),
+  recommendedUsername: text("recommended_username").notNull(),
+  recommendedUserPicture: text("recommended_user_picture"),
+  reason: text("reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
 });
@@ -377,7 +379,9 @@ export const userRecommendations = pgTable("user_recommendations", {
 export const insertUserRecommendationSchema = createInsertSchema(userRecommendations).pick({
   userId: true,
   recommendedUserId: true,
-  matchReason: true,
+  recommendedUsername: true,
+  recommendedUserPicture: true,
+  reason: true,
   expiresAt: true,
 });
 
@@ -399,8 +403,8 @@ export const userRecommendationsRelations = relations(userRecommendations, ({ on
 export const placeRecommendations = pgTable("place_recommendations", {
   id: serial("id").primaryKey(),
   roomId: integer("room_id").notNull().references(() => chatRooms.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  type: text("type").notNull(),
+  placeName: text("place_name").notNull(),
+  description: text("description"),
   reason: text("reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
@@ -408,8 +412,8 @@ export const placeRecommendations = pgTable("place_recommendations", {
 
 export const insertPlaceRecommendationSchema = createInsertSchema(placeRecommendations).pick({
   roomId: true,
-  name: true,
-  type: true,
+  placeName: true,
+  description: true,
   reason: true,
   expiresAt: true,
 });

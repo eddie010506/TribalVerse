@@ -1549,35 +1549,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Get all users except current user
+      // First check if we have cached recommendations
+      const cachedRecommendations = await storage.getSimilarUserRecommendations(userId);
+      
+      if (cachedRecommendations.length > 0) {
+        // Transform cached recommendations to expected format
+        return res.json({
+          users: cachedRecommendations.map(rec => ({
+            id: rec.recommendedUserId,
+            username: rec.recommendedUsername,
+            profilePicture: rec.recommendedUserPicture,
+            matchReason: rec.reason
+          })),
+          fromCache: true
+        });
+      }
+      
+      // No cached recommendations, get all users except current user
       const allUsers = await storage.getAllUsersExcept(userId);
       
-      // Find similar users using AI
-      const similarUsers = await findSimilarUsers(
-        currentUser.hobbies || "",
-        currentUser.interests || "",
-        allUsers.map((u: any) => ({
-          id: u.id,
-          username: u.username,
-          hobbies: u.hobbies,
-          interests: u.interests,
-          currentActivities: u.currentActivities
-        }))
-      );
-      
-      res.json(similarUsers);
-    } catch (error: any) {
-      console.error("Error finding similar users:", error);
-      
-      // Check for rate limit errors
-      if (error.status === 429 || (error.error && error.error.type === 'rate_limit_error')) {
-        res.status(429).json({ 
-          message: "Rate limit exceeded. Please try again in a minute.",
-          retryAfter: parseInt(error.headers?.['retry-after'] || '60')
-        });
-      } else {
-        res.status(500).json({ message: "Failed to find similar users" });
+      try {
+        // Find similar users using AI
+        const similarUsers = await findSimilarUsers(
+          currentUser.hobbies || "",
+          currentUser.interests || "",
+          allUsers.map((u: any) => ({
+            id: u.id,
+            username: u.username,
+            hobbies: u.hobbies,
+            interests: u.interests,
+            currentActivities: u.currentActivities
+          }))
+        );
+        
+        // Cache the recommendations
+        if (similarUsers.users && similarUsers.users.length > 0) {
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 24); // Cache for 24 hours
+          
+          // Save each recommendation to the cache
+          await Promise.all(similarUsers.users.map(async (user: any) => {
+            await storage.createUserRecommendation({
+              userId,
+              recommendedUserId: user.id,
+              recommendedUsername: user.username,
+              recommendedUserPicture: user.profilePicture || null,
+              reason: user.matchReason,
+              expiresAt
+            });
+          }));
+        }
+        
+        return res.json(similarUsers);
+      } catch (error: any) {
+        console.error("Error finding similar users with AI:", error);
+        
+        // Check for rate limit errors
+        if (error.status === 429 || (error.error && error.error.type === 'rate_limit_error')) {
+          return res.status(429).json({ 
+            message: "Rate limit exceeded. Please try again in a minute.",
+            retryAfter: parseInt(error.headers?.['retry-after'] || '60')
+          });
+        } else {
+          // Return empty result on other errors
+          return res.json({ 
+            users: [], 
+            message: "No recommendations available at this time. Please try again later."
+          });
+        }
       }
+    } catch (error: any) {
+      console.error("Error in similar users route:", error);
+      res.status(500).json({ 
+        message: "Failed to find similar users", 
+        users: [] 
+      });
     }
   });
   
@@ -1593,6 +1639,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const room = await storage.getChatRoom(roomId);
       if (!room) {
         return res.status(404).json({ message: "Chat room not found" });
+      }
+      
+      // First check if we have cached recommendations
+      const cachedRecommendations = await storage.getPlaceRecommendations(roomId);
+      
+      if (cachedRecommendations.length > 0) {
+        // Transform cached recommendations to expected format
+        return res.json({
+          places: cachedRecommendations.map(rec => ({
+            name: rec.placeName,
+            description: rec.description,
+            reasonToVisit: rec.reason
+          })),
+          fromCache: true
+        });
       }
       
       // Get messages to analyze room activity
@@ -1634,27 +1695,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter(Boolean)
         .join(", ");
       
-      // Get meetup recommendations using AI
-      const recommendations = await recommendMeetupPlaces(
-        allInterests,
-        allActivities,
-        room.name,
-        chatParticipantCount
-      );
-      
-      res.json(recommendations);
-    } catch (error: any) {
-      console.error("Error getting meetup recommendations:", error);
-      
-      // Check for rate limit errors
-      if (error.status === 429 || (error.error && error.error.type === 'rate_limit_error')) {
-        res.status(429).json({ 
-          message: "Rate limit exceeded. Please try again in a minute.",
-          retryAfter: parseInt(error.headers?.['retry-after'] || '60')
-        });
-      } else {
-        res.status(500).json({ message: "Failed to get meetup recommendations" });
+      try {
+        // Get meetup recommendations using AI
+        const recommendations = await recommendMeetupPlaces(
+          allInterests,
+          allActivities,
+          room.name,
+          chatParticipantCount
+        );
+        
+        // Cache the recommendations
+        if (recommendations.places && recommendations.places.length > 0) {
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 24); // Cache for 24 hours
+          
+          // Save each recommendation to the cache
+          await Promise.all(recommendations.places.map(async (place: any) => {
+            await storage.createPlaceRecommendation({
+              roomId,
+              placeName: place.name,
+              description: place.description,
+              reason: place.reasonToVisit,
+              expiresAt
+            });
+          }));
+        }
+        
+        return res.json(recommendations);
+      } catch (error: any) {
+        console.error("Error getting meetup recommendations with AI:", error);
+        
+        // Check for rate limit errors
+        if (error.status === 429 || (error.error && error.error.type === 'rate_limit_error')) {
+          return res.status(429).json({ 
+            message: "Rate limit exceeded. Please try again in a minute.",
+            retryAfter: parseInt(error.headers?.['retry-after'] || '60')
+          });
+        } else {
+          // Return empty result on other errors
+          return res.json({ 
+            places: [], 
+            message: "No recommendations available at this time. Please try again later."
+          });
+        }
       }
+    } catch (error: any) {
+      console.error("Error in meetup recommendations route:", error);
+      res.status(500).json({ 
+        message: "Failed to get meetup recommendations", 
+        places: [] 
+      });
     }
   });
 
