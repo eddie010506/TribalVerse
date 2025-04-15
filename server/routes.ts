@@ -1,7 +1,7 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
-import WebSocket from "ws";
+import WebSocket, { WebSocketServer } from "ws";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import multer from "multer";
@@ -830,6 +830,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const room = await storage.createChatRoom(validatedData);
+      
+      // If invitees were provided, send invitations
+      if (req.body.invitees && Array.isArray(req.body.invitees)) {
+        const inviterId = req.user!.id;
+        const roomId = room.id;
+        
+        // Send invitations to all invitees
+        for (const inviteeId of req.body.invitees) {
+          // Skip if invitee ID is invalid
+          if (typeof inviteeId !== 'number' || isNaN(inviteeId)) continue;
+          
+          // Skip if invitee is the creator
+          if (inviteeId === inviterId) continue;
+          
+          // Check if user exists
+          const invitee = await storage.getUser(inviteeId);
+          if (!invitee) continue;
+          
+          // Create the invitation
+          await storage.createRoomInvitation({
+            roomId,
+            inviterId,
+            inviteeId
+          });
+        }
+        
+        // Send a refresh_notifications WebSocket event
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'refresh_notifications'
+            }));
+          }
+        });
+      }
+      
       res.status(201).json(room);
     } catch (error) {
       res.status(400).json({ message: "Invalid room data" });
@@ -866,6 +902,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(messages);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  // Room invitation API routes
+  app.get("/api/room-invitations/received", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const invitations = await storage.getReceivedRoomInvitations(userId);
+      
+      // Enhance invitations with room and inviter info
+      const enhancedInvitations = await Promise.all(
+        invitations.map(async (invitation) => {
+          const room = await storage.getChatRoom(invitation.roomId);
+          const inviter = await storage.getUser(invitation.inviterId);
+          
+          return {
+            ...invitation,
+            room: room ? {
+              id: room.id,
+              name: room.name,
+              description: room.description
+            } : null,
+            inviter: inviter ? {
+              id: inviter.id,
+              username: inviter.username,
+              profilePicture: inviter.profilePicture
+            } : null
+          };
+        })
+      );
+      
+      res.json(enhancedInvitations);
+    } catch (error) {
+      console.error("Error getting received room invitations:", error);
+      res.status(500).json({ message: "Failed to get received room invitations" });
+    }
+  });
+  
+  app.get("/api/room-invitations/sent", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const invitations = await storage.getSentRoomInvitations(userId);
+      
+      // Enhance invitations with room and invitee info
+      const enhancedInvitations = await Promise.all(
+        invitations.map(async (invitation) => {
+          const room = await storage.getChatRoom(invitation.roomId);
+          const invitee = await storage.getUser(invitation.inviteeId);
+          
+          return {
+            ...invitation,
+            room: room ? {
+              id: room.id,
+              name: room.name,
+              description: room.description
+            } : null,
+            invitee: invitee ? {
+              id: invitee.id,
+              username: invitee.username,
+              profilePicture: invitee.profilePicture
+            } : null
+          };
+        })
+      );
+      
+      res.json(enhancedInvitations);
+    } catch (error) {
+      console.error("Error getting sent room invitations:", error);
+      res.status(500).json({ message: "Failed to get sent room invitations" });
+    }
+  });
+  
+  app.post("/api/room-invitations", isAuthenticated, isEmailVerified, async (req, res) => {
+    try {
+      const { roomId, inviteeId } = req.body;
+      const inviterId = req.user!.id;
+      
+      if (!roomId || isNaN(roomId) || !inviteeId || isNaN(inviteeId)) {
+        return res.status(400).json({ message: "Invalid room ID or invitee ID" });
+      }
+      
+      // Check if room exists
+      const room = await storage.getChatRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      
+      // Check if user is the room creator or has permission to invite
+      if (room.creatorId !== inviterId) {
+        return res.status(403).json({ message: "You don't have permission to invite users to this room" });
+      }
+      
+      // Check if invitee exists
+      const invitee = await storage.getUser(inviteeId);
+      if (!invitee) {
+        return res.status(404).json({ message: "Invitee not found" });
+      }
+      
+      // Don't allow inviting self
+      if (inviterId === inviteeId) {
+        return res.status(400).json({ message: "You cannot invite yourself" });
+      }
+      
+      // Create the invitation
+      const invitation = await storage.createRoomInvitation({
+        roomId,
+        inviterId,
+        inviteeId
+      });
+      
+      // Send a refresh_notifications WebSocket event
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'refresh_notifications'
+          }));
+        }
+      });
+      
+      res.status(201).json(invitation);
+    } catch (error) {
+      console.error("Error creating room invitation:", error);
+      res.status(500).json({ message: "Failed to create room invitation" });
+    }
+  });
+  
+  app.patch("/api/room-invitations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const invitationId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      const { status } = req.body;
+      
+      if (isNaN(invitationId)) {
+        return res.status(400).json({ message: "Invalid invitation ID" });
+      }
+      
+      if (status !== 'accepted' && status !== 'declined') {
+        return res.status(400).json({ message: "Status must be 'accepted' or 'declined'" });
+      }
+      
+      // Get the invitation to check if this user is the invitee
+      const invitations = await storage.getReceivedRoomInvitations(userId);
+      const invitation = invitations.find(inv => inv.id === invitationId);
+      
+      if (!invitation) {
+        return res.status(404).json({ 
+          message: "Invitation not found or you're not authorized to respond" 
+        });
+      }
+      
+      // Update the invitation status
+      const updatedInvitation = await storage.respondToRoomInvitation(invitationId, status);
+      if (!updatedInvitation) {
+        return res.status(400).json({ message: "Failed to respond to invitation" });
+      }
+      
+      // Send a refresh_notifications WebSocket event
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'refresh_notifications'
+          }));
+        }
+      });
+      
+      res.json(updatedInvitation);
+    } catch (error) {
+      console.error("Error responding to room invitation:", error);
+      res.status(500).json({ message: "Failed to respond to room invitation" });
     }
   });
 
