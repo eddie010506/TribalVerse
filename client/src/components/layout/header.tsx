@@ -25,7 +25,7 @@ export function Header() {
         
         {user ? (
           <div className="flex items-center gap-4">
-            <NotificationBell userId={user.id} />
+            <NotificationBell />
             <Link href="/profile">
               <div className="flex items-center text-sm text-neutral-600 cursor-pointer hover:text-primary">
                 <User className="h-4 w-4 mr-1" />

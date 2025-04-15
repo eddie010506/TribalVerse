@@ -20,19 +20,20 @@ export function useNotifications() {
     enabled: !!userId,
   });
 
-  const { data: unreadCount = 0 } = useQuery<number>({
-    queryKey: ["/api/notifications/unread-count"],
+  const { data: unreadCount = 0 } = useQuery<{count: number}, Error, number>({
+    queryKey: ["/api/notifications/count"],
     enabled: !!userId,
+    select: (data) => data.count,
   });
 
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: number) => {
-      const res = await apiRequest("POST", `/api/notifications/${notificationId}/mark-read`);
+      const res = await apiRequest("PATCH", `/api/notifications/${notificationId}`);
       return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/count"] });
     },
     onError: (error: Error) => {
       toast({
@@ -50,7 +51,7 @@ export function useNotifications() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/count"] });
     },
     onError: (error: Error) => {
       toast({

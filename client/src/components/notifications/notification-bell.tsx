@@ -7,7 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNotifications } from "@/hooks/use-notifications";
-import { NotificationList } from "../notifications/notification-list";
+import { NotificationList } from "@/components/notifications/notification-list";
 import { cn } from "@/lib/utils";
 
 export function NotificationBell() {
