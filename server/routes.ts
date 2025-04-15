@@ -11,6 +11,7 @@ import { insertChatRoomSchema, insertMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import { sendVerificationEmail } from "./email";
+import { sendMessageToAI, initializeAIConversation } from "./anthropic";
 
 // Configure multer for image uploads
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -1465,6 +1466,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ws.on('close', () => {
       clients.delete(ws);
     });
+  });
+
+  // AI Chatbot API Routes
+  app.post("/api/ai/chat", isAuthenticated, isEmailVerified, async (req, res) => {
+    try {
+      const { message, conversationHistory } = req.body;
+      
+      if (!message || typeof message !== 'string' || message.trim() === '') {
+        return res.status(400).json({ message: "Message is required" });
+      }
+      
+      // Validate conversation history if present
+      if (conversationHistory && (!Array.isArray(conversationHistory) || 
+          !conversationHistory.every(item => 
+            item && typeof item === 'object' && 
+            (item.role === 'user' || item.role === 'assistant') && 
+            typeof item.content === 'string'))) {
+        return res.status(400).json({ message: "Invalid conversation history format" });
+      }
+      
+      // Get AI response
+      const aiResponse = await sendMessageToAI(message, conversationHistory);
+      
+      res.json({ response: aiResponse });
+    } catch (error) {
+      console.error("Error in AI chat:", error);
+      res.status(500).json({ message: "Failed to communicate with AI" });
+    }
+  });
+  
+  app.get("/api/ai/initialize", isAuthenticated, isEmailVerified, async (req, res) => {
+    try {
+      const introduction = await initializeAIConversation();
+      res.json({ introduction });
+    } catch (error) {
+      console.error("Error initializing AI conversation:", error);
+      res.status(500).json({ message: "Failed to initialize AI conversation" });
+    }
   });
 
   return httpServer;
