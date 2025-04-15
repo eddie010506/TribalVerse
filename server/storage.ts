@@ -1,8 +1,8 @@
-import { users, chatRooms, messages, follows, friendRequests, notifications, roomInvitations } from "@shared/schema";
+import { users, chatRooms, messages, follows, friendRequests, notifications, roomInvitations, posts } from "@shared/schema";
 import type { 
   User, InsertUser, ChatRoom, InsertChatRoom, Message, InsertMessage, MessageWithUser,
   Follow, InsertFollow, FriendRequest, InsertFriendRequest, Notification, InsertNotification,
-  RoomInvitation, InsertRoomInvitation
+  RoomInvitation, InsertRoomInvitation, Post, InsertPost, PostWithUser
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
@@ -637,6 +637,138 @@ export class DatabaseStorage implements IStorage {
     }
 
     return updatedInvitation;
+  }
+
+  // Post methods
+  async getPosts(currentUserId: number): Promise<PostWithUser[]> {
+    // Get all posts the current user should be able to see
+    const query = `
+      SELECT p.*, u.username, u.profile_picture FROM posts p
+      JOIN users u ON p.user_id = u.id
+      WHERE 
+        -- Public posts
+        p.visibility = 'public'
+        -- Posts from users the current user follows (if visibility is 'followers')
+        OR (p.visibility = 'followers' AND EXISTS (
+          SELECT 1 FROM follows WHERE follower_id = $1 AND following_id = p.user_id
+        ))
+        -- Posts from users who are friends with the current user (if visibility is 'friends')
+        OR (p.visibility = 'friends' AND EXISTS (
+          SELECT 1 FROM friend_requests 
+          WHERE ((sender_id = $1 AND receiver_id = p.user_id) OR (sender_id = p.user_id AND receiver_id = $1))
+          AND status = 'accepted'
+        ))
+        -- User's own posts
+        OR p.user_id = $1
+        -- Don't show posts that should be auto-deleted
+        AND (p.auto_delete_at IS NULL OR p.auto_delete_at > NOW())
+      ORDER BY p.created_at DESC
+    `;
+
+    try {
+      const result = await pool.query(query, [currentUserId]);
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        content: row.content,
+        imageUrl: row.image_url,
+        visibility: row.visibility,
+        autoDeleteAt: row.auto_delete_at,
+        createdAt: row.created_at,
+        user: {
+          id: row.user_id,
+          username: row.username,
+          profilePicture: row.profile_picture
+        }
+      }));
+    } catch (error) {
+      console.error("Error getting posts:", error);
+      return [];
+    }
+  }
+
+  async getPostsByUser(userId: number, currentUserId: number): Promise<PostWithUser[]> {
+    // Get posts by a specific user with visibility restrictions
+    const query = `
+      SELECT p.*, u.username, u.profile_picture FROM posts p
+      JOIN users u ON p.user_id = u.id
+      WHERE p.user_id = $1
+      AND (
+        -- Public posts
+        p.visibility = 'public'
+        -- Follower-only posts if currentUser follows the user
+        OR (p.visibility = 'followers' AND EXISTS (
+          SELECT 1 FROM follows WHERE follower_id = $2 AND following_id = $1
+        ))
+        -- Friend-only posts if currentUser is friends with the user
+        OR (p.visibility = 'friends' AND EXISTS (
+          SELECT 1 FROM friend_requests 
+          WHERE ((sender_id = $2 AND receiver_id = $1) OR (sender_id = $1 AND receiver_id = $2))
+          AND status = 'accepted'
+        ))
+        -- Allow users to see their own posts regardless of visibility
+        OR $1 = $2
+      )
+      -- Don't show posts that should be auto-deleted
+      AND (p.auto_delete_at IS NULL OR p.auto_delete_at > NOW())
+      ORDER BY p.created_at DESC
+    `;
+
+    try {
+      const result = await pool.query(query, [userId, currentUserId]);
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        content: row.content,
+        imageUrl: row.image_url,
+        visibility: row.visibility,
+        autoDeleteAt: row.auto_delete_at,
+        createdAt: row.created_at,
+        user: {
+          id: row.user_id,
+          username: row.username,
+          profilePicture: row.profile_picture
+        }
+      }));
+    } catch (error) {
+      console.error("Error getting user posts:", error);
+      return [];
+    }
+  }
+
+  async createPost(post: InsertPost): Promise<Post> {
+    const [newPost] = await db
+      .insert(posts)
+      .values(post)
+      .returning();
+    
+    return newPost;
+  }
+
+  async deletePost(postId: number, userId: number): Promise<boolean> {
+    try {
+      // First verify that the user is the creator of the post
+      const [post] = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, postId));
+      
+      if (!post || post.userId !== userId) {
+        return false;
+      }
+      
+      // Delete the post
+      await db
+        .delete(posts)
+        .where(eq(posts.id, postId));
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      return false;
+    }
   }
 }
 

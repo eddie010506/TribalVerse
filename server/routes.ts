@@ -1147,6 +1147,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ url: filePath });
   });
 
+  // Posts API Routes
+  app.get("/api/posts", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const posts = await storage.getPosts(userId);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error getting posts:", error);
+      res.status(500).json({ message: "Failed to fetch posts" });
+    }
+  });
+
+  app.get("/api/users/:userId/posts", isAuthenticated, async (req, res) => {
+    try {
+      const targetUserId = parseInt(req.params.userId);
+      const currentUserId = req.user!.id;
+      
+      if (isNaN(targetUserId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const posts = await storage.getPostsByUser(targetUserId, currentUserId);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error getting user posts:", error);
+      res.status(500).json({ message: "Failed to fetch user posts" });
+    }
+  });
+
+  app.post("/api/posts", isAuthenticated, isEmailVerified, async (req, res) => {
+    try {
+      const { content, imageUrl, visibility, autoDeleteHours } = req.body;
+      const userId = req.user!.id;
+      
+      // Validate post data
+      if (!content) {
+        return res.status(400).json({ message: "Content is required" });
+      }
+      
+      // Validate visibility
+      if (visibility && !['public', 'followers', 'friends'].includes(visibility)) {
+        return res.status(400).json({ message: "Invalid visibility value" });
+      }
+      
+      // Set up auto-deletion if specified
+      let autoDeleteAt = null;
+      if (autoDeleteHours && !isNaN(Number(autoDeleteHours))) {
+        const hours = Number(autoDeleteHours);
+        if (hours > 0) {
+          autoDeleteAt = new Date();
+          autoDeleteAt.setHours(autoDeleteAt.getHours() + hours);
+        }
+      }
+      
+      const post = await storage.createPost({
+        userId,
+        content,
+        imageUrl: imageUrl || null,
+        visibility: visibility || 'public',
+        autoDeleteAt
+      });
+      
+      res.status(201).json(post);
+    } catch (error) {
+      console.error("Error creating post:", error);
+      res.status(500).json({ message: "Failed to create post" });
+    }
+  });
+
+  app.delete("/api/posts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      const success = await storage.deletePost(postId, userId);
+      
+      if (!success) {
+        return res.status(403).json({ message: "You don't have permission to delete this post or the post doesn't exist" });
+      }
+      
+      res.json({ message: "Post deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      res.status(500).json({ message: "Failed to delete post" });
+    }
+  });
+
   // Create HTTP server
   const httpServer = createServer(app);
 
