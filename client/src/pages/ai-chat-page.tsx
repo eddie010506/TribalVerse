@@ -3,12 +3,11 @@ import { Send, Loader2, Bot } from 'lucide-react';
 import { format } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useAIChat, type Message } from '@/hooks/use-ai-chat';
 import { useAuth } from '@/hooks/use-auth';
-import { Header } from '@/components/layout/header';
-import { Footer } from '@/components/layout/footer';
-import { Textarea } from '@/components/ui/textarea';
+import { Header } from '../components/layout/header';
+import { Footer } from '../components/layout/footer';
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user';

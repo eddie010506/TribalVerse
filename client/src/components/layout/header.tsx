@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, User, FileText, Menu, Home, LogOut } from 'lucide-react';
+import { MessageSquare, User, FileText, Menu, Home, LogOut, Bot } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { useState, useEffect } from 'react';
@@ -26,6 +26,7 @@ export function Header() {
     { href: "/", icon: <FileText className="h-5 w-5 mr-3" />, label: "Posts", active: location === "/" },
     { href: "/chat", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Chat Rooms", active: location === "/chat" },
     { href: "/profile", icon: <User className="h-5 w-5 mr-3" />, label: "Profile", active: location === "/profile" },
+    { href: "/ai-chat", icon: <Bot className="h-5 w-5 mr-3" />, label: "AI Assistant", active: location === "/ai-chat" },
   ] : [];
 
   return (
@@ -89,6 +90,12 @@ export function Header() {
                   <div className="flex items-center text-sm text-neutral-600 cursor-pointer hover:text-primary">
                     <MessageSquare className="h-4 w-4 mr-1" />
                     <span className="font-medium">Chat Rooms</span>
+                  </div>
+                </Link>
+                <Link href="/ai-chat">
+                  <div className="flex items-center text-sm text-neutral-600 cursor-pointer hover:text-primary">
+                    <Bot className="h-4 w-4 mr-1" />
+                    <span className="font-medium">AI Assistant</span>
                   </div>
                 </Link>
                 <Link href="/profile">
