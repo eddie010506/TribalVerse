@@ -1553,7 +1553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get similar users based on interests/hobbies
+  // Get similar users based on interests/hobbies (algorithm-based approach)
   app.get("/api/ai/similar-users", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;
@@ -1576,14 +1576,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cachedRecommendations = await storage.getSimilarUserRecommendations(userId);
       
       if (cachedRecommendations.length > 0) {
-        // Transform cached recommendations to expected format
+        // Return cached recommendations
+        const recommendedUsers = await Promise.all(
+          cachedRecommendations.map(async (rec) => {
+            const user = await storage.getUser(rec.recommendedUserId);
+            if (!user) return null;
+            
+            return {
+              id: user.id,
+              username: user.username,
+              profilePicture: user.profilePicture,
+              matchReason: rec.matchReason
+            };
+          })
+        );
+        
+        // Filter out null values (in case a user was deleted)
+        const validUsers = recommendedUsers.filter(user => user !== null);
+        
         return res.json({
-          users: cachedRecommendations.map(rec => ({
-            id: rec.recommendedUserId,
-            username: rec.recommendedUsername,
-            profilePicture: rec.recommendedUserPicture,
-            matchReason: rec.reason
-          })),
+          users: validUsers,
           fromCache: true
         });
       }
@@ -1591,56 +1603,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // No cached recommendations, get all users except current user
       const allUsers = await storage.getAllUsersExcept(userId);
       
-      try {
-        // Find similar users using AI
-        const similarUsers = await findSimilarUsers(
-          currentUser.hobbies || "",
-          currentUser.interests || "",
-          allUsers.map((u: any) => ({
-            id: u.id,
-            username: u.username,
-            hobbies: u.hobbies,
-            interests: u.interests,
-            currentActivities: u.currentActivities
-          }))
-        );
-        
-        // Cache the recommendations
-        if (similarUsers.users && similarUsers.users.length > 0) {
-          const expiresAt = new Date();
-          expiresAt.setHours(expiresAt.getHours() + 24); // Cache for 24 hours
+      // User's interests and hobbies
+      const userHobbies = (currentUser.hobbies || "").toLowerCase().split(",").map(h => h.trim()).filter(h => h);
+      const userInterests = (currentUser.interests || "").toLowerCase().split(",").map(i => i.trim()).filter(i => i);
+      
+      // Algorithm-based similarity calculation
+      const scoredUsers = allUsers
+        .map((otherUser: any) => {
+          // Calculate similarity score
+          let score = 0;
+          let matchReasons = [];
           
-          // Save each recommendation to the cache
-          await Promise.all(similarUsers.users.map(async (user: any) => {
-            await storage.createUserRecommendation({
-              userId,
-              recommendedUserId: user.id,
-              recommendedUsername: user.username,
-              recommendedUserPicture: user.profilePicture || null,
-              reason: user.matchReason,
-              expiresAt
-            });
-          }));
-        }
+          // Parse other user's hobbies and interests
+          const otherHobbies = (otherUser.hobbies || "").toLowerCase().split(",").map(h => h.trim()).filter(h => h);
+          const otherInterests = (otherUser.interests || "").toLowerCase().split(",").map(i => i.trim()).filter(i => i);
+          
+          // Calculate hobby matches
+          const hobbyMatches = userHobbies.filter(hobby => otherHobbies.some(oh => oh.includes(hobby) || hobby.includes(oh)));
+          score += hobbyMatches.length * 2; // Hobbies are weighted higher
+          
+          if (hobbyMatches.length > 0) {
+            if (hobbyMatches.length === 1) {
+              matchReasons.push(`Shares hobby: ${hobbyMatches[0]}`);
+            } else {
+              matchReasons.push(`Shares ${hobbyMatches.length} hobbies including ${hobbyMatches.slice(0, 2).join(", ")}`);
+            }
+          }
+          
+          // Calculate interest matches
+          const interestMatches = userInterests.filter(interest => otherInterests.some(oi => oi.includes(interest) || interest.includes(oi)));
+          score += interestMatches.length;
+          
+          if (interestMatches.length > 0) {
+            if (interestMatches.length === 1) {
+              matchReasons.push(`Similar interest: ${interestMatches[0]}`);
+            } else {
+              matchReasons.push(`Shares ${interestMatches.length} interests including ${interestMatches.slice(0, 2).join(", ")}`);
+            }
+          }
+          
+          // Generate match reason
+          let matchReason = matchReasons.length > 0 
+            ? matchReasons.join(". ") 
+            : "Recommended based on profile similarity";
+          
+          return {
+            user: otherUser,
+            score,
+            matchReason
+          };
+        })
+        .filter(item => item.score > 0) // Only keep users with some similarity
+        .sort((a, b) => b.score - a.score) // Sort by highest score first
+        .slice(0, 5); // Get top 5 matches
+      
+      // Format the results
+      const similarUsers = {
+        users: scoredUsers.map(item => ({
+          id: item.user.id,
+          username: item.user.username,
+          profilePicture: item.user.profilePicture,
+          matchReason: item.matchReason
+        }))
+      };
+      
+      // Cache the recommendations if we have any
+      if (similarUsers.users.length > 0) {
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24); // Cache for 24 hours
         
-        return res.json(similarUsers);
-      } catch (error: any) {
-        console.error("Error finding similar users with AI:", error);
+        // Delete existing recommendations first
+        await pool.query('DELETE FROM user_recommendations WHERE user_id = $1', [userId]);
         
-        // Check for rate limit errors
-        if (error.status === 429 || (error.error && error.error.type === 'rate_limit_error')) {
-          return res.status(429).json({ 
-            message: "Rate limit exceeded. Please try again in a minute.",
-            retryAfter: parseInt(error.headers?.['retry-after'] || '60')
+        // Save each recommendation to the cache
+        await Promise.all(similarUsers.users.map(async (user: any) => {
+          await storage.createUserRecommendation({
+            userId,
+            recommendedUserId: user.id,
+            matchReason: user.matchReason,
+            expiresAt
           });
-        } else {
-          // Return empty result on other errors
-          return res.json({ 
-            users: [], 
-            message: "No recommendations available at this time. Please try again later."
-          });
-        }
+        }));
       }
+      
+      return res.json(similarUsers);
     } catch (error: any) {
       console.error("Error in similar users route:", error);
       res.status(500).json({ 
