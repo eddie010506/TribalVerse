@@ -108,7 +108,30 @@ const isEmailVerified = (req: Request, res: Response, next: Function) => {
   next();
 };
 
+// Clean up expired recommendations from cache - runs every hour
+function scheduleRecommendationCleanup() {
+  const cleanupInterval = 60 * 60 * 1000; // 1 hour
+  
+  async function cleanup() {
+    try {
+      await storage.clearExpiredUserRecommendations();
+      await storage.clearExpiredPlaceRecommendations();
+      console.log("Cleaned up expired recommendations", new Date().toISOString());
+    } catch (error) {
+      console.error("Error cleaning up recommendations:", error);
+    }
+  }
+  
+  // Run immediately
+  cleanup();
+  
+  // Schedule periodic cleanup
+  setInterval(cleanup, cleanupInterval);
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Schedule recommendation cache cleanup
+  scheduleRecommendationCleanup();
   // Setup authentication routes
   setupAuth(app);
   
