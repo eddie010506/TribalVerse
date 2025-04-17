@@ -16,7 +16,8 @@ const placeTypeIcons: Record<string, React.ReactNode> = {
 export function MeetupPlacesCard({ roomId }: { roomId: number }) {
   const { 
     meetupPlaces, 
-    getMeetupRecommendations, 
+    getMeetupRecommendations,
+    refreshMeetupPlaces,
     isLoadingMeetupPlaces, 
     hasActiveMeetupPlaces 
   } = useAIRecommendations();
@@ -61,7 +62,7 @@ export function MeetupPlacesCard({ roomId }: { roomId: number }) {
             <p className="text-muted-foreground mb-4">
               No meetup suggestions available yet. This feature requires an active chat room with at least 20 messages.
             </p>
-            <Button onClick={() => getMeetupRecommendations(roomId)} variant="outline" size="sm">
+            <Button onClick={() => refreshMeetupPlaces(roomId)} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
               Get Suggestions
             </Button>
@@ -77,7 +78,7 @@ export function MeetupPlacesCard({ roomId }: { roomId: number }) {
             ))}
             <div className="text-center pt-2">
               <Button 
-                onClick={() => getMeetupRecommendations(roomId)} 
+                onClick={() => refreshMeetupPlaces(roomId)} 
                 variant="outline" 
                 size="sm"
               >

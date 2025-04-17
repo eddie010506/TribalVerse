@@ -1702,15 +1702,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get meetup place recommendations for a chat room
   app.get("/api/ai/meetup-recommendations/:roomId", isAuthenticated, async (req, res) => {
     try {
+      // Add a small delay to prevent excessive API calls (100-150ms)
+      await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 50));
+      
       const roomId = parseInt(req.params.roomId);
       if (isNaN(roomId)) {
-        return res.status(400).json({ message: "Invalid room ID" });
+        return res.status(400).json({ message: "Invalid room ID", places: [] });
       }
       
       // Get the chat room
       const room = await storage.getChatRoom(roomId);
       if (!room) {
-        return res.status(404).json({ message: "Chat room not found" });
+        return res.status(404).json({ 
+          message: "Chat room not found",
+          places: [] 
+        });
       }
       
       // First check if we have cached recommendations
@@ -1743,7 +1749,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (messages.length < 20 || chatParticipantCount < 2) {
         return res.status(400).json({
           message: "The chat room needs to be more active to get meetup recommendations",
-          isActive: false
+          isActive: false,
+          places: []
         });
       }
       

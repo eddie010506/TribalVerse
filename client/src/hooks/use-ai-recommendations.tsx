@@ -26,25 +26,43 @@ export function useAIRecommendations() {
   // Time threshold before retrying empty results (12 hours in milliseconds)
   const RETRY_THRESHOLD = 12 * 60 * 60 * 1000; 
 
+  // Track if a request is in progress to prevent duplicate calls
+  const requestInProgressRef = useRef<boolean>(false);
+  
   // Get similar users based on your profile
   const getSimilarUsersMutation = useMutation({
     mutationFn: async () => {
-      // Prevent repeated calls when we already know there are no recommendations
+      // Prevent repeated calls when we already know there are no recommendations or a request is in progress
+      if (requestInProgressRef.current) {
+        return { users: [] };
+      }
+      
       const now = Date.now();
       if (noRecommendationsRef.current && 
           (now - lastEmptyResultTime.current < RETRY_THRESHOLD)) {
         return { users: [] };
       }
       
-      const response = await apiRequest('GET', '/api/ai/similar-users');
-      if (!response.ok) {
-        // Handle rate limit errors specially
-        if (response.status === 429) {
-          throw new Error("Rate limit exceeded. Please try again in a minute.");
+      // Mark that a request is in progress
+      requestInProgressRef.current = true;
+      
+      try {
+        const response = await apiRequest('GET', '/api/ai/similar-users');
+        if (!response.ok) {
+          // Handle rate limit errors specially
+          if (response.status === 429) {
+            throw new Error("Rate limit exceeded. Please try again in a minute.");
+          }
+          throw new Error(`Error: ${response.statusText}`);
         }
-        throw new Error(`Error: ${response.statusText}`);
+        return await response.json();
+      } finally {
+        // Clear the in-progress flag when done, regardless of success/failure
+        // Add a small delay to prevent immediate retries
+        setTimeout(() => {
+          requestInProgressRef.current = false;
+        }, 500);
       }
-      return await response.json();
     },
     onSuccess: (data) => {
       if (data.users && Array.isArray(data.users)) {
@@ -66,6 +84,10 @@ export function useAIRecommendations() {
       }
     },
     onError: (error: Error) => {
+      // Mark that we've tried and failed
+      noRecommendationsRef.current = true;
+      lastEmptyResultTime.current = Date.now();
+      
       toast({
         title: 'Error',
         description: `Failed to get similar users: ${error.message}`,
@@ -74,27 +96,67 @@ export function useAIRecommendations() {
     },
   });
 
+  // Track if a meetup request is in progress
+  const meetupRequestInProgressRef = useRef<boolean>(false);
+  // Track rooms with no recommendations
+  const noMeetupRecsForRoomRef = useRef<Record<number, number>>({});
+
   // Get meetup place recommendations for a chat room
   const getMeetupRecommendationsMutation = useMutation({
     mutationFn: async (roomId: number) => {
-      const response = await apiRequest('GET', `/api/ai/meetup-recommendations/${roomId}`);
-      if (!response.ok) {
-        // Handle rate limit errors specially
-        if (response.status === 429) {
-          throw new Error("Rate limit exceeded. Please try again in a minute.");
-        }
-        throw new Error(`Error: ${response.statusText}`);
+      // Prevent repeated calls when a request is in progress
+      if (meetupRequestInProgressRef.current) {
+        return { places: [] };
       }
-      return await response.json();
+      
+      // Check if this room already tried and got empty results within threshold
+      const now = Date.now();
+      const lastEmptyTime = noMeetupRecsForRoomRef.current[roomId] || 0;
+      if (lastEmptyTime && (now - lastEmptyTime < RETRY_THRESHOLD)) {
+        return { places: [] };
+      }
+      
+      // Mark that a request is in progress
+      meetupRequestInProgressRef.current = true;
+      
+      try {
+        const response = await apiRequest('GET', `/api/ai/meetup-recommendations/${roomId}`);
+        if (!response.ok) {
+          // Handle rate limit errors specially
+          if (response.status === 429) {
+            throw new Error("Rate limit exceeded. Please try again in a minute.");
+          }
+          throw new Error(`Error: ${response.statusText}`);
+        }
+        return await response.json();
+      } finally {
+        // Clear the in-progress flag with a small delay to prevent immediate retries
+        setTimeout(() => {
+          meetupRequestInProgressRef.current = false;
+        }, 500);
+      }
     },
-    onSuccess: (data) => {
+    onSuccess: (data, roomId) => {
       if (data.places && Array.isArray(data.places)) {
         setMeetupPlaces(data.places);
+        
+        // If no results, mark that we've tried this room and got empty results
+        if (data.places.length === 0) {
+          noMeetupRecsForRoomRef.current[roomId] = Date.now();
+        } else {
+          // Reset if we get results
+          delete noMeetupRecsForRoomRef.current[roomId];
+        }
       } else {
         setMeetupPlaces([]);
+        // Mark that we've tried and got empty results
+        noMeetupRecsForRoomRef.current[roomId] = Date.now();
       }
     },
-    onError: (error: Error) => {
+    onError: (error: Error, roomId) => {
+      // Mark that we've tried and failed
+      noMeetupRecsForRoomRef.current[roomId] = Date.now();
+      
       toast({
         title: 'Error',
         description: `Failed to get meetup recommendations: ${error.message}`,
@@ -108,6 +170,13 @@ export function useAIRecommendations() {
     noRecommendationsRef.current = false;
     getSimilarUsersMutation.mutate();
   };
+  
+  // Manual refresh function for meetup places
+  const refreshMeetupPlaces = (roomId: number) => {
+    // Clear the cached "empty" state for this room
+    delete noMeetupRecsForRoomRef.current[roomId];
+    getMeetupRecommendationsMutation.mutate(roomId);
+  };
 
   return {
     similarUsers,
@@ -115,6 +184,7 @@ export function useAIRecommendations() {
     getSimilarUsers: () => getSimilarUsersMutation.mutate(),
     refreshSimilarUsers,
     getMeetupRecommendations: (roomId: number) => getMeetupRecommendationsMutation.mutate(roomId),
+    refreshMeetupPlaces,
     isLoadingSimilarUsers: getSimilarUsersMutation.isPending,
     isLoadingMeetupPlaces: getMeetupRecommendationsMutation.isPending,
     hasActiveSimilarUsers: similarUsers.length > 0,
