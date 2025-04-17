@@ -15,31 +15,51 @@ import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RoomInvitationsProvider } from "@/hooks/use-room-invitations";
 import { useAIProfileSetup } from "@/hooks/use-ai-profile-setup";
-import { useEffect } from "react";
+import { ProfileSetupDialog } from "@/components/ai/profile-setup-dialog";
+import { useAuth } from "@/hooks/use-auth";
+import { useState, useEffect } from "react";
 
 // ProfileCheckRouter component to check if profile is complete and redirect if needed
 function ProfileCheckRouter() {
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
+  const { user } = useAuth();
   const { isProfileComplete, isLoading } = useAIProfileSetup();
   const [location] = useLocation();
   
-  // Note: We've removed the AI chat page redirection since that page no longer exists
-  // AI recommendations are now integrated into relevant pages
+  // Check if user is logged in and profile is incomplete
+  useEffect(() => {
+    if (
+      user && 
+      !isLoading && 
+      location !== '/auth' && 
+      location !== '/profile' && 
+      !isProfileComplete()
+    ) {
+      // Only show the profile setup dialog if user is authenticated and profile is incomplete
+      setShowProfileSetup(true);
+    }
+  }, [user, isLoading, location, isProfileComplete]);
 
   return (
-    <Switch>
-      <ProtectedRoute path="/" component={PostsPage} />
-      <Route path="/posts">
-        <Redirect to="/" />
-      </Route>
-      <ProtectedRoute path="/chat" component={HomePage} />
-      <ProtectedRoute path="/rooms/:id" component={ChatRoom} />
-      <ProtectedRoute path="/create-room" component={CreateRoom} />
-      <ProtectedRoute path="/profile" component={ProfilePage} />
-      <ProtectedRoute path="/users/:id" component={UserProfilePage} />
-      <ProtectedRoute path="/create-post" component={CreatePostPage} />
-      <Route path="/auth" component={AuthPage} />
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      {/* Profile setup dialog - shown for first-time users */}
+      <ProfileSetupDialog open={showProfileSetup} onOpenChange={setShowProfileSetup} />
+      
+      <Switch>
+        <ProtectedRoute path="/" component={PostsPage} />
+        <Route path="/posts">
+          <Redirect to="/" />
+        </Route>
+        <ProtectedRoute path="/chat" component={HomePage} />
+        <ProtectedRoute path="/rooms/:id" component={ChatRoom} />
+        <ProtectedRoute path="/create-room" component={CreateRoom} />
+        <ProtectedRoute path="/profile" component={ProfilePage} />
+        <ProtectedRoute path="/users/:id" component={UserProfilePage} />
+        <ProtectedRoute path="/create-post" component={CreatePostPage} />
+        <Route path="/auth" component={AuthPage} />
+        <Route component={NotFound} />
+      </Switch>
+    </>
   );
 }
 

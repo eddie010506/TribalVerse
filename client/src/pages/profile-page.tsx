@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import React, { useState, useEffect } from "react";
-import { Loader2, Save, Edit, Mail, CheckCircle, XCircle, SendHorizontal, AlertCircle, Users, UserCheck, Heart } from "lucide-react";
+import { Loader2, Save, Edit, Mail, CheckCircle, XCircle, SendHorizontal, AlertCircle, Users, UserCheck, Heart, Bot } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import { useFriendRequests } from "@/hooks/use-friend-requests";
 import { FriendRequestList } from "@/components/social/friend-request-list";
 import { FollowList } from "@/components/social/follow-list";
 import { Header } from "@/components/layout/header";
+import { ProfileSetupDialog } from "@/components/ai/profile-setup-dialog";
 
 // Social components for the different tabs
 function SocialFriendRequests({ userId }: { userId?: number }) {
@@ -81,6 +82,9 @@ export default function ProfilePage() {
   
   // State for edit mode
   const [isEditing, setIsEditing] = useState(false);
+  
+  // State for AI profile setup dialog
+  const [showProfileSetupDialog, setShowProfileSetupDialog] = useState(false);
   
   // Form fields state
   const [hobbies, setHobbies] = useState("");
@@ -245,6 +249,12 @@ export default function ProfilePage() {
   return (
     <div>
       <Header />
+      {/* AI Profile Setup Dialog */}
+      <ProfileSetupDialog 
+        open={showProfileSetupDialog}
+        onOpenChange={setShowProfileSetupDialog}
+      />
+      
       <main className="container mx-auto py-10 px-4 md:px-6">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-3xl font-bold mb-6">Your Profile</h1>
@@ -497,7 +507,16 @@ export default function ProfilePage() {
               </div>
             </CardContent>
             
-            <CardFooter className="flex justify-end">
+            <CardFooter className="flex justify-between">
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => setShowProfileSetupDialog(true)}
+              >
+                <Bot className="h-4 w-4" />
+                Learn More with AI
+              </Button>
+              
               {isEditing ? (
                 <div className="space-x-2">
                   <Button variant="outline" onClick={handleCancel}>
