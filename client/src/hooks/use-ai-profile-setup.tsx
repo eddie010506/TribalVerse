@@ -71,9 +71,10 @@ export function useAIProfileSetup() {
     },
   });
 
-  // Function to redirect to AI chat for profile setup
+  // Function to redirect to profile page for setup
+  // Note: We've changed this to redirect to profile page instead of AI chat
   const redirectToProfileSetup = () => {
-    setLocation("/ai-chat?setup=profile");
+    setLocation("/profile");
   };
 
   // Function to update profile from AI chat
