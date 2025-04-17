@@ -11,6 +11,9 @@ import { insertChatRoomSchema, insertMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import { sendVerificationEmail } from "./email";
+// We need to access the constant
+import { default as Anthropic } from '@anthropic-ai/sdk';
+
 import { 
   sendMessageToAI, 
   initializeAIConversation, 
@@ -20,6 +23,9 @@ import {
   initializeProfileSetup,
   analyzeProfileSetupConversation
 } from "./anthropic";
+
+// Profile setup instructions for guiding new users
+const PROFILE_SETUP_INSTRUCTION = "You are a helpful AI assistant designed to help new users set up their profile. Your goal is to have a friendly conversation with the user to help them identify their hobbies, interests, and current activities. Ask questions one at a time, be conversational, and listen to their responses. Don't overwhelm them with too many questions at once. After gathering enough information, suggest a concise summary of their hobbies, interests, and current activities that they can use for their profile. The summary for each category should be 1-3 sentences maximum and highlight key points.";
 
 // Configure multer for image uploads
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -1567,6 +1573,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error initializing profile setup:", error);
       res.status(500).json({ message: "Failed to initialize profile setup" });
+    }
+  });
+  
+  // Send message to AI during profile setup
+  app.post("/api/ai/message", isAuthenticated, async (req, res) => {
+    try {
+      const { message, conversationHistory } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ message: "Valid message is required" });
+      }
+      
+      if (!conversationHistory || !Array.isArray(conversationHistory)) {
+        return res.status(400).json({ message: "Valid conversation history is required" });
+      }
+      
+      const reply = await sendMessageToAI(message, conversationHistory, PROFILE_SETUP_INSTRUCTION);
+      res.json({ reply });
+    } catch (error) {
+      console.error("Error sending message to AI:", error);
+      res.status(500).json({ message: "Failed to get response from AI" });
     }
   });
   
