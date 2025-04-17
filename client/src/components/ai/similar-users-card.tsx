@@ -77,7 +77,7 @@ function SimilarUserItem({ user }: { user: SimilarUser }) {
       </Avatar>
       <div className="flex-1 min-w-0">
         <Link href={`/user/${user.id}`}>
-          <a className="text-sm font-medium">@{user.username}</a>
+          <span className="text-sm font-medium cursor-pointer hover:underline">@{user.username}</span>
         </Link>
         <p className="text-sm text-muted-foreground">{user.matchReason}</p>
       </div>

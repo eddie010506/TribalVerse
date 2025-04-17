@@ -11,7 +11,6 @@ import ProfilePage from "@/pages/profile-page";
 import UserProfilePage from "@/pages/user-profile-page";
 import PostsPage from "@/pages/posts-page";
 import CreatePostPage from "@/pages/create-post-page";
-import AIChatPage from "@/pages/ai-chat-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RoomInvitationsProvider } from "@/hooks/use-room-invitations";
@@ -20,16 +19,11 @@ import { useEffect } from "react";
 
 // ProfileCheckRouter component to check if profile is complete and redirect if needed
 function ProfileCheckRouter() {
-  const { isProfileComplete, isLoading, redirectToProfileSetup } = useAIProfileSetup();
+  const { isProfileComplete, isLoading } = useAIProfileSetup();
   const [location] = useLocation();
   
-  useEffect(() => {
-    // Only redirect if profile is incomplete, not loading, and not already on AI chat page
-    if (isProfileComplete === false && !isLoading && 
-        !location.startsWith('/ai-chat') && location !== '/auth') {
-      redirectToProfileSetup();
-    }
-  }, [isProfileComplete, isLoading, location, redirectToProfileSetup]);
+  // Note: We've removed the AI chat page redirection since that page no longer exists
+  // AI recommendations are now integrated into relevant pages
 
   return (
     <Switch>
@@ -43,7 +37,6 @@ function ProfileCheckRouter() {
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/users/:id" component={UserProfilePage} />
       <ProtectedRoute path="/create-post" component={CreatePostPage} />
-      <ProtectedRoute path="/ai-chat" component={AIChatPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

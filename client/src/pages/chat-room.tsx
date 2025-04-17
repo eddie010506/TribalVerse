@@ -24,6 +24,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { ArrowLeft, Users, Info, Trash2, MapPin } from 'lucide-react';
 import { Link } from 'wouter';
 import { MeetupPlacesCard } from '@/components/ai/meetup-places-card';
+import { SimilarUsersCard } from '@/components/ai/similar-users-card';
 
 export default function ChatRoomPage() {
   // Get room id from URL
@@ -205,8 +206,12 @@ export default function ChatRoomPage() {
           />
           </div>
           
-          {/* AI Meetup Recommendations */}
-          <div className="hidden md:block md:col-span-1">
+          {/* AI Recommendations Sidebar */}
+          <div className="hidden md:block md:col-span-1 space-y-4">
+            {/* Similar Users Recommendations */}
+            <SimilarUsersCard />
+            
+            {/* Meetup Places Recommendations */}
             {roomId && room && !room.isSelfChat && messages.length >= 20 && (
               <MeetupPlacesCard roomId={roomId} />
             )}
