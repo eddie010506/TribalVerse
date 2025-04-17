@@ -217,16 +217,20 @@ For each category, provide 1-3 sentences that capture the essence of what I've s
 
     const aiResponse = response.content[0].text;
     
-    // Process the AI response to extract the sections
-    const hobbiesMatch = aiResponse.match(/(?:Hobbies:?|1\.?)\s+(.*?)(?=(?:Interests|2\.?))/is);
-    const interestsMatch = aiResponse.match(/(?:Interests:?|2\.?)\s+(.*?)(?=(?:Current Activities|3\.?))/is);
-    const activitiesMatch = aiResponse.match(/(?:Current Activities:?|3\.?)\s+(.*?)(?=(?:$|\n\n))/is);
+    // Process the AI response to extract the sections - using simpler regex to avoid incompatibility
+    const hobbiesSectionRegex = /(Hobbies|1\.?)\s+([\s\S]*?)(Interests|2\.?)/i;
+    const interestsSectionRegex = /(Interests|2\.?)\s+([\s\S]*?)(Current Activities|3\.?)/i;
+    const activitiesSectionRegex = /(Current Activities|3\.?)\s+([\s\S]*?)($|\n\n)/i;
+    
+    const hobbiesMatch = hobbiesSectionRegex.exec(aiResponse);
+    const interestsMatch = interestsSectionRegex.exec(aiResponse);
+    const activitiesMatch = activitiesSectionRegex.exec(aiResponse);
     
     if (hobbiesMatch && interestsMatch && activitiesMatch) {
       return {
-        hobbies: hobbiesMatch[1].trim(),
-        interests: interestsMatch[1].trim(),
-        currentActivities: activitiesMatch[1].trim()
+        hobbies: hobbiesMatch[2].trim(),
+        interests: interestsMatch[2].trim(),
+        currentActivities: activitiesMatch[2].trim()
       };
     } else {
       console.error('Failed to extract profile sections from AI response');

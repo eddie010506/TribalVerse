@@ -16,7 +16,9 @@ import {
   initializeAIConversation, 
   initializeCustomAIConversation,
   findSimilarUsers,
-  recommendMeetupPlaces
+  recommendMeetupPlaces,
+  initializeProfileSetup,
+  analyzeProfileSetupConversation
 } from "./anthropic";
 
 // Configure multer for image uploads
@@ -1550,6 +1552,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error initializing custom AI conversation:", error);
       res.status(500).json({ message: "Failed to initialize custom AI conversation" });
+    }
+  });
+  
+  // Initialize AI profile setup conversation
+  app.get("/api/ai/initialize-profile-setup", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const introduction = await initializeProfileSetup(req.user.username);
+      res.json({ introduction });
+    } catch (error) {
+      console.error("Error initializing profile setup:", error);
+      res.status(500).json({ message: "Failed to initialize profile setup" });
+    }
+  });
+  
+  // Analyze profile setup conversation to extract profile data
+  app.post("/api/ai/analyze-profile", isAuthenticated, async (req, res) => {
+    try {
+      const { conversationHistory } = req.body;
+      
+      if (!conversationHistory || !Array.isArray(conversationHistory)) {
+        return res.status(400).json({ message: "Valid conversation history is required" });
+      }
+      
+      const profileData = await analyzeProfileSetupConversation(conversationHistory);
+      
+      if (!profileData) {
+        return res.status(422).json({ message: "Failed to extract profile data from conversation" });
+      }
+      
+      res.json(profileData);
+    } catch (error) {
+      console.error("Error analyzing profile setup conversation:", error);
+      res.status(500).json({ message: "Failed to analyze profile setup conversation" });
     }
   });
   
