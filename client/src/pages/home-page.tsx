@@ -5,12 +5,13 @@ import { Footer } from '@/components/layout/footer';
 import { RoomList } from '@/components/chat/room-list';
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
-import { PlusCircle, Mail, FileText } from 'lucide-react';
+import { PlusCircle, Mail, FileText, Users } from 'lucide-react';
 import { RoomInvitations, AcceptedRooms } from '@/components/social/room-invitations';
 import { useRoomInvitations } from '@/hooks/use-room-invitations';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { usePosts, PostsProvider } from '@/hooks/use-posts';
+import { SimilarUsersCard } from '@/components/ai/similar-users-card';
 
 // Component to show recent posts on the homepage
 function RecentPosts() {
@@ -144,6 +145,22 @@ export default function HomePage() {
               <CardContent>
                 <RoomInvitations />
                 <AcceptedRooms />
+              </CardContent>
+            </Card>
+            
+            {/* AI Recommendations Card */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center">
+                  <Users className="h-5 w-5 mr-2 text-primary" />
+                  <CardTitle className="text-lg">AI Recommendations</CardTitle>
+                </div>
+                <CardDescription>
+                  Find people with similar interests
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SimilarUsersCard />
               </CardContent>
             </Card>
           </div>
