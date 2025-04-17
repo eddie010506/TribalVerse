@@ -9,17 +9,19 @@ import { Link } from "wouter";
 export function SimilarUsersCard() {
   const { 
     similarUsers, 
-    getSimilarUsers, 
+    getSimilarUsers,
+    refreshSimilarUsers,
     isLoadingSimilarUsers, 
-    hasActiveSimilarUsers 
+    hasActiveSimilarUsers,
+    noRecommendationsAvailable
   } = useAIRecommendations();
 
-  // Automatically load recommendations when component mounts
+  // Automatically load recommendations when component mounts - but only once
   useEffect(() => {
-    if (!hasActiveSimilarUsers) {
+    if (!hasActiveSimilarUsers && !noRecommendationsAvailable) {
       getSimilarUsers();
     }
-  }, [getSimilarUsers, hasActiveSimilarUsers]);
+  }, [getSimilarUsers, hasActiveSimilarUsers, noRecommendationsAvailable]);
 
   return (
     <Card>
@@ -29,7 +31,7 @@ export function SimilarUsersCard() {
           People You Might Know
         </CardTitle>
         <CardDescription>
-          AI-powered recommendations based on your interests
+          Algorithm-powered recommendations based on your interests
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -42,7 +44,7 @@ export function SimilarUsersCard() {
             <p className="text-muted-foreground mb-4">
               No recommendations available yet. Make sure your profile is complete with hobbies and interests.
             </p>
-            <Button onClick={() => getSimilarUsers()} variant="outline" size="sm">
+            <Button onClick={() => refreshSimilarUsers()} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh Recommendations
             </Button>
@@ -53,7 +55,7 @@ export function SimilarUsersCard() {
               <SimilarUserItem key={user.id} user={user} />
             ))}
             <div className="text-center pt-2">
-              <Button onClick={() => getSimilarUsers()} variant="outline" size="sm">
+              <Button onClick={() => refreshSimilarUsers()} variant="outline" size="sm">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh Recommendations
               </Button>

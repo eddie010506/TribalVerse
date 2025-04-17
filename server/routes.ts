@@ -1556,19 +1556,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get similar users based on interests/hobbies (algorithm-based approach)
   app.get("/api/ai/similar-users", isAuthenticated, async (req, res) => {
     try {
+      // Add a small delay to prevent excessive API calls (100-150ms)
+      await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 50));
+      
       const userId = req.user!.id;
       
       // Get current user
       const currentUser = await storage.getUser(userId);
       if (!currentUser) {
-        return res.status(404).json({ message: "User not found" });
+        return res.status(404).json({ message: "User not found", users: [] });
       }
       
       // Make sure user has interests and hobbies
       if (!currentUser.hobbies && !currentUser.interests) {
         return res.status(400).json({ 
           message: "You need to set up your hobbies and interests first",
-          isProfileComplete: false
+          isProfileComplete: false,
+          users: []
         });
       }
       
@@ -1657,18 +1661,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .sort((a, b) => b.score - a.score) // Sort by highest score first
         .slice(0, 5); // Get top 5 matches
       
-      // Format the results
-      const similarUsers = {
-        users: scoredUsers.map(item => ({
-          id: item.user.id,
-          username: item.user.username,
-          profilePicture: item.user.profilePicture,
-          matchReason: item.matchReason
-        }))
-      };
+      // Format the results - always return {users: [...]} format
+      const users = scoredUsers.map(item => ({
+        id: item.user.id,
+        username: item.user.username,
+        profilePicture: item.user.profilePicture,
+        matchReason: item.matchReason
+      }));
       
       // Cache the recommendations if we have any
-      if (similarUsers.users.length > 0) {
+      if (users.length > 0) {
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 24); // Cache for 24 hours
         
@@ -1676,7 +1678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await pool.query('DELETE FROM user_recommendations WHERE user_id = $1', [userId]);
         
         // Save each recommendation to the cache
-        await Promise.all(similarUsers.users.map(async (user: any) => {
+        await Promise.all(users.map(async (user: any) => {
           await storage.createUserRecommendation({
             userId,
             recommendedUserId: user.id,
@@ -1686,7 +1688,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }));
       }
       
-      return res.json(similarUsers);
+      // Return in consistent format
+      return res.json({ users });
     } catch (error: any) {
       console.error("Error in similar users route:", error);
       res.status(500).json({ 
