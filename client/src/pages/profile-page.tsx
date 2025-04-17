@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import React, { useState, useEffect } from "react";
-import { Loader2, Save, Edit, Mail, CheckCircle, XCircle, SendHorizontal, AlertCircle, Users, UserCheck, Heart, Bot } from "lucide-react";
+import { Loader2, Save, Edit, Mail, CheckCircle, XCircle, SendHorizontal, AlertCircle, Users, UserCheck, Heart } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,6 @@ import { useFriendRequests } from "@/hooks/use-friend-requests";
 import { FriendRequestList } from "@/components/social/friend-request-list";
 import { FollowList } from "@/components/social/follow-list";
 import { Header } from "@/components/layout/header";
-import { SimilarUsersCard } from "@/components/ai/similar-users-card";
 
 // Social components for the different tabs
 function SocialFriendRequests({ userId }: { userId?: number }) {
@@ -421,23 +420,7 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
           
-          {/* AI Recommendations Card */}
-          {profile?.hobbies && profile?.interests && (
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle className="text-2xl flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  AI Recommendations
-                </CardTitle>
-                <CardDescription>
-                  Get personalized recommendations based on your profile
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SimilarUsersCard />
-              </CardContent>
-            </Card>
-          )}
+          {/* AI Recommendations moved to chat room page */}
           
           {/* User Profile Card */}
           <Card className="mb-8">
