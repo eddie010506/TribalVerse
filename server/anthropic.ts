@@ -11,6 +11,9 @@ const DEFAULT_SYSTEM_INSTRUCTION = "You are a friendly and helpful AI assistant 
 // Default system instructions for introduction (first message)
 const DEFAULT_INTRO_SYSTEM_INSTRUCTION = "You are a friendly and helpful AI assistant in a chat room for educational purposes. You help students with homework, research, and general knowledge questions. Be concise, helpful, and educational in your responses. Avoid any harmful or inappropriate content. Your introduction should be brief (2-3 sentences max) and welcoming.";
 
+// Profile setup instructions for guiding new users
+const PROFILE_SETUP_INSTRUCTION = "You are a helpful AI assistant designed to help new users set up their profile. Your goal is to have a friendly conversation with the user to help them identify their hobbies, interests, and current activities. Ask questions one at a time, be conversational, and listen to their responses. Don't overwhelm them with too many questions at once. After gathering enough information, suggest a concise summary of their hobbies, interests, and current activities that they can use for their profile. The summary for each category should be 1-3 sentences maximum and highlight key points.";
+
 /**
  * Sends a message to Claude AI and gets a response
  */
@@ -155,8 +158,86 @@ Only include users that have some genuine similarity. If there are no good match
 }
 
 /**
- * Recommends places to meet based on interests and activities
+ * Initializes a profile setup conversation with the AI
  */
+export async function initializeProfileSetup(username: string): Promise<string> {
+  try {
+    const response: any = await anthropic.messages.create({
+      model: 'claude-3-7-sonnet-20250219',
+      max_tokens: 1024,
+      messages: [{ 
+        role: 'user', 
+        content: `Hi, I'm ${username}. I'm a new user and need help setting up my profile.` 
+      }],
+      system: PROFILE_SETUP_INSTRUCTION
+    });
+
+    // Return the AI's introduction
+    if (response.content && response.content.length > 0) {
+      return response.content[0].text;
+    } else {
+      throw new Error('Unexpected response format from Anthropic API');
+    }
+  } catch (error) {
+    console.error('Error initializing profile setup:', error);
+    throw new Error('Failed to initialize profile setup conversation');
+  }
+}
+
+/**
+ * Analyzes a conversation with the user to extract profile information
+ */
+export async function analyzeProfileSetupConversation(
+  conversationHistory: Array<{ role: 'user' | 'assistant', content: string }>
+): Promise<{ hobbies: string; interests: string; currentActivities: string } | null> {
+  try {
+    const analysisPrompt = `
+Based on our conversation so far, please analyze what you've learned about me and create a concise summary for my profile in these three categories:
+1. Hobbies
+2. Interests 
+3. Current Activities
+
+For each category, provide 1-3 sentences that capture the essence of what I've shared.
+`;
+    
+    // Add the analysis request to the conversation
+    const messages = [...conversationHistory];
+    messages.push({ role: 'user', content: analysisPrompt });
+    
+    const response: any = await anthropic.messages.create({
+      model: 'claude-3-7-sonnet-20250219',
+      max_tokens: 1024,
+      messages,
+      system: "You are a profile analysis assistant. Based on the conversation, extract the user's hobbies, interests, and current activities. Format your response to clearly label each section. Be concise and accurate."
+    });
+
+    if (!response.content || response.content.length === 0) {
+      throw new Error('Unexpected response format from Anthropic API');
+    }
+
+    const aiResponse = response.content[0].text;
+    
+    // Process the AI response to extract the sections
+    const hobbiesMatch = aiResponse.match(/(?:Hobbies:?|1\.?)\s+(.*?)(?=(?:Interests|2\.?))/is);
+    const interestsMatch = aiResponse.match(/(?:Interests:?|2\.?)\s+(.*?)(?=(?:Current Activities|3\.?))/is);
+    const activitiesMatch = aiResponse.match(/(?:Current Activities:?|3\.?)\s+(.*?)(?=(?:$|\n\n))/is);
+    
+    if (hobbiesMatch && interestsMatch && activitiesMatch) {
+      return {
+        hobbies: hobbiesMatch[1].trim(),
+        interests: interestsMatch[1].trim(),
+        currentActivities: activitiesMatch[1].trim()
+      };
+    } else {
+      console.error('Failed to extract profile sections from AI response');
+      return null;
+    }
+  } catch (error) {
+    console.error('Error analyzing profile setup conversation:', error);
+    return null;
+  }
+}
+
 export async function recommendMeetupPlaces(
   interests: string,
   activities: string,
