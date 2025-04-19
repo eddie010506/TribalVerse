@@ -254,24 +254,26 @@ export async function recommendMeetupPlaces(
   interests: string,
   activities: string,
   chatRoomName: string,
-  chatParticipantCount: number
+  chatParticipantCount: number,
+  foodPreferences?: string
 ): Promise<{ places: Array<{ name: string; description: string; reasonToVisit: string; }> }> {
   try {
     const prompt = `
-I need to suggest places for students to meet up based on their interests and their chat room topic.
+I need to suggest places for students to meet up based on their interests, food preferences, and their chat room topic.
 
 Chat room name: "${chatRoomName}"
 Number of participants: ${chatParticipantCount}
 Collective interests: "${interests}"
 Current activities: "${activities}"
+${foodPreferences ? `Food preferences: "${foodPreferences}"` : ''}
 
-Please suggest 3-5 potential places on or near a college campus where these students could meet up based on their interests and the chat topic. Provide the results as a JSON object with a "places" array like this:
+Please suggest 3-5 potential places on or near a college campus where these students could meet up based on their interests, food preferences, and the chat topic. If food preferences are provided, prioritize restaurants or cafes that match these preferences. Provide the results as a JSON object with a "places" array like this:
 {
   "places": [
     {
       "name": string (name of the place),
       "description": string (brief description of the place),
-      "reasonToVisit": string (why this place matches their interests/activities)
+      "reasonToVisit": string (why this place matches their interests/activities/food preferences)
     },
     ...
   ]
@@ -282,7 +284,7 @@ Please suggest 3-5 potential places on or near a college campus where these stud
       model: 'claude-3-7-sonnet-20250219',
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
-      system: "You are a campus recommendation assistant that helps students find suitable places to meet up based on their interests and activities. Always respond with valid JSON only, no explanations or additional text."
+      system: "You are a campus recommendation assistant that helps students find suitable places to meet up based on their interests, activities, and food preferences. If food preferences are mentioned, prioritize dining venues that match these preferences. Always respond with valid JSON only, no explanations or additional text."
     });
 
     // Return the AI's recommendations
