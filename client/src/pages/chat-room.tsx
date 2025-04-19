@@ -22,9 +22,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { ArrowLeft, Users, Info, Trash2, MapPin, UserPlus } from 'lucide-react';
+import { ArrowLeft, Users, Info, Trash2, MapPin, UserPlus, Utensils } from 'lucide-react';
 import { Link } from 'wouter';
-import { MeetupPlacesCard } from '@/components/ai/meetup-places-card';
+import { RestaurantRecommendationsDialog } from '@/components/ai/restaurant-recommendations-dialog';
 import { SimilarUsersCard } from '@/components/ai/similar-users-card';
 
 export default function ChatRoomPage() {
@@ -217,9 +217,15 @@ export default function ChatRoomPage() {
             {/* Similar Users Recommendations */}
             <SimilarUsersCard />
             
-            {/* Meetup Places Recommendations */}
-            {roomId && room && !room.isSelfChat && messages.length >= 20 && (
-              <MeetupPlacesCard roomId={roomId} />
+            {/* Restaurant Recommendations */}
+            {roomId && room && !room.isSelfChat && (
+              <div className="bg-white rounded-lg shadow-sm border p-4">
+                <h3 className="text-lg font-semibold mb-3">Food & Dining</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Find great restaurants near your school for meetups with friends
+                </p>
+                <RestaurantRecommendationsDialog roomId={roomId} />
+              </div>
             )}
           </div>
         </div>

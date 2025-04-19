@@ -42,29 +42,50 @@ export function RestaurantRecommendationsDialog({ roomId }: { roomId: number }) 
       
       // Split restaurants into price categories
       meetupPlaces.forEach(place => {
-        // Use restaurant name and description to guess price category
-        const name = place.name.toLowerCase();
-        const desc = place.description?.toLowerCase() || '';
-        
-        // Simple heuristic based on keywords and restaurant types
-        if (
-          name.includes('fast') || 
-          name.includes('express') || 
-          desc.includes('fast') ||
-          desc.includes('casual') ||
-          desc.includes('budget')
-        ) {
-          budget.push(place);
-        } else if (
-          name.includes('fine') || 
-          name.includes('premium') || 
-          desc.includes('fine dining') ||
-          desc.includes('upscale') ||
-          desc.includes('premium')
-        ) {
-          premium.push(place);
+        // Check if we have a price range from the API
+        if (place.priceRange) {
+          const priceRange = place.priceRange.toLowerCase();
+          
+          if (priceRange.includes('$10-20') || priceRange.includes('budget') || priceRange === 'low') {
+            budget.push(place);
+          } else if (priceRange.includes('$30+') || priceRange.includes('high') || priceRange.includes('premium')) {
+            premium.push(place);
+          } else if (priceRange.includes('$20-30') || priceRange.includes('medium') || priceRange === 'mid') {
+            midRange.push(place);
+          } else {
+            // Fallback to description-based categorization
+            fallbackCategorization();
+          }
         } else {
-          midRange.push(place);
+          // No price range info, use fallback
+          fallbackCategorization();
+        }
+        
+        function fallbackCategorization() {
+          // Use restaurant name and description to guess price category
+          const name = place.name.toLowerCase();
+          const desc = place.description?.toLowerCase() || '';
+          
+          // Simple heuristic based on keywords and restaurant types
+          if (
+            name.includes('fast') || 
+            name.includes('express') || 
+            desc.includes('fast') ||
+            desc.includes('casual') ||
+            desc.includes('budget')
+          ) {
+            budget.push(place);
+          } else if (
+            name.includes('fine') || 
+            name.includes('premium') || 
+            desc.includes('fine dining') ||
+            desc.includes('upscale') ||
+            desc.includes('premium')
+          ) {
+            premium.push(place);
+          } else {
+            midRange.push(place);
+          }
         }
       });
       
@@ -197,12 +218,19 @@ function RestaurantCard({ place }: { place: MeetupPlace }) {
     <div className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start">
         <h3 className="text-md font-semibold">{place.name}</h3>
-        {rating && (
-          <div className="flex items-center gap-1 bg-yellow-100 px-2 py-0.5 rounded text-yellow-700">
-            <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
-            <span className="text-xs font-medium">{rating}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {place.priceRange && (
+            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+              {place.priceRange}
+            </span>
+          )}
+          {rating && (
+            <div className="flex items-center gap-1 bg-yellow-100 px-2 py-0.5 rounded text-yellow-700">
+              <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
+              <span className="text-xs font-medium">{rating}</span>
+            </div>
+          )}
+        </div>
       </div>
       
       <div className="mt-2 flex flex-wrap gap-1.5">
