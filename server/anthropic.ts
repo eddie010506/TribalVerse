@@ -12,7 +12,7 @@ const DEFAULT_SYSTEM_INSTRUCTION = "You are a friendly and helpful AI assistant 
 const DEFAULT_INTRO_SYSTEM_INSTRUCTION = "You are a friendly and helpful AI assistant in a chat room for educational purposes. You help students with homework, research, and general knowledge questions. Be concise, helpful, and educational in your responses. Avoid any harmful or inappropriate content. Your introduction should be brief (2-3 sentences max) and welcoming.";
 
 // Profile setup instructions for guiding new users
-const PROFILE_SETUP_INSTRUCTION = "You are a helpful AI assistant designed to help new users set up their profile. Your goal is to have a friendly conversation with the user to help them identify their hobbies, interests, and current activities. Ask questions one at a time, be conversational, and listen to their responses. Don't overwhelm them with too many questions at once. After gathering enough information, suggest a concise summary of their hobbies, interests, and current activities that they can use for their profile. The summary for each category should be 1-3 sentences maximum and highlight key points.";
+const PROFILE_SETUP_INSTRUCTION = "You are a helpful AI assistant designed to help new users set up their profile. Your goal is to have a friendly conversation with the user to help them identify their hobbies, interests, current activities, and favorite foods. Ask questions one at a time, be conversational, and listen to their responses. Don't overwhelm them with too many questions at once. Make sure to ask them about their favorite foods or cuisines they enjoy. After gathering enough information, suggest a concise summary of their hobbies, interests, current activities, and favorite foods that they can use for their profile. The summary for each category should be 1-3 sentences maximum and highlight key points.";
 
 /**
  * Sends a message to Claude AI and gets a response
@@ -86,28 +86,32 @@ export async function initializeCustomAIConversation(systemInstruction: string):
 export async function findSimilarUsers(
   userHobbies: string,
   userInterests: string,
+  userFavoriteFood: string | null,
   otherUsers: Array<{
     id: number;
     username: string;
     hobbies: string | null;
     interests: string | null;
     currentActivities: string | null;
+    favoriteFood: string | null;
   }>
 ): Promise<{ users: Array<{ id: number; username: string; matchReason: string; profilePicture?: string | null; }> }> {
   try {
     const prompt = `
-I need to find users with similar interests and hobbies to a target user. 
+I need to find users with similar interests, hobbies, and food preferences to a target user. 
 
 Target user's hobbies: "${userHobbies}"
 Target user's interests: "${userInterests}"
+Target user's favorite food: "${userFavoriteFood || 'Not specified'}"
 
-Here are the other users with their hobbies and interests:
+Here are the other users with their hobbies, interests, and food preferences:
 ${otherUsers.map(user => `
 User ID: ${user.id}
 Username: ${user.username}
 Hobbies: ${user.hobbies || 'Not specified'}
 Interests: ${user.interests || 'Not specified'}
 Current Activities: ${user.currentActivities || 'Not specified'}
+Favorite Food: ${user.favoriteFood || 'Not specified'}
 `).join('\n')}
 
 Please analyze the data and provide me with a JSON object containing an array called "users" with the top 3-5 most similar users (or fewer if there aren't that many good matches). For each match, include the user ID, username, and a brief explanation of why they're a good match. The format should be:
@@ -130,7 +134,7 @@ Only include users that have some genuine similarity. If there are no good match
       model: 'claude-3-7-sonnet-20250219',
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
-      system: "You are a data analysis assistant that specializes in finding patterns and similarities between users based on their hobbies and interests. Always respond with valid JSON only, no explanations or additional text."
+      system: "You are a data analysis assistant that specializes in finding patterns and similarities between users based on their hobbies, interests, and food preferences. Always respond with valid JSON only, no explanations or additional text."
     });
 
     // Return the AI's analysis
@@ -189,13 +193,14 @@ export async function initializeProfileSetup(username: string): Promise<string> 
  */
 export async function analyzeProfileSetupConversation(
   conversationHistory: Array<{ role: 'user' | 'assistant', content: string }>
-): Promise<{ hobbies: string; interests: string; currentActivities: string } | null> {
+): Promise<{ hobbies: string; interests: string; currentActivities: string; favoriteFood: string | null } | null> {
   try {
     const analysisPrompt = `
-Based on our conversation so far, please analyze what you've learned about me and create a concise summary for my profile in these three categories:
+Based on our conversation so far, please analyze what you've learned about me and create a concise summary for my profile in these four categories:
 1. Hobbies
 2. Interests 
 3. Current Activities
+4. Favorite Food
 
 For each category, provide 1-3 sentences that capture the essence of what I've shared.
 `;
@@ -208,7 +213,7 @@ For each category, provide 1-3 sentences that capture the essence of what I've s
       model: 'claude-3-7-sonnet-20250219',
       max_tokens: 1024,
       messages,
-      system: "You are a profile analysis assistant. Based on the conversation, extract the user's hobbies, interests, and current activities. Format your response to clearly label each section. Be concise and accurate."
+      system: "You are a profile analysis assistant. Based on the conversation, extract the user's hobbies, interests, current activities, and favorite foods. Format your response to clearly label each section. Be concise and accurate."
     });
 
     if (!response.content || response.content.length === 0) {
@@ -220,17 +225,20 @@ For each category, provide 1-3 sentences that capture the essence of what I've s
     // Process the AI response to extract the sections - using simpler regex to avoid incompatibility
     const hobbiesSectionRegex = /(Hobbies|1\.?)\s+([\s\S]*?)(Interests|2\.?)/i;
     const interestsSectionRegex = /(Interests|2\.?)\s+([\s\S]*?)(Current Activities|3\.?)/i;
-    const activitiesSectionRegex = /(Current Activities|3\.?)\s+([\s\S]*?)($|\n\n)/i;
+    const activitiesSectionRegex = /(Current Activities|3\.?)\s+([\s\S]*?)(Favorite Food|4\.?|$|\n\n)/i;
+    const favoriteFoodRegex = /(Favorite Food|4\.?)\s+([\s\S]*?)($|\n\n)/i;
     
     const hobbiesMatch = hobbiesSectionRegex.exec(aiResponse);
     const interestsMatch = interestsSectionRegex.exec(aiResponse);
     const activitiesMatch = activitiesSectionRegex.exec(aiResponse);
+    const favoriteFoodMatch = favoriteFoodRegex.exec(aiResponse);
     
     if (hobbiesMatch && interestsMatch && activitiesMatch) {
       return {
         hobbies: hobbiesMatch[2].trim(),
         interests: interestsMatch[2].trim(),
-        currentActivities: activitiesMatch[2].trim()
+        currentActivities: activitiesMatch[2].trim(),
+        favoriteFood: favoriteFoodMatch ? favoriteFoodMatch[2].trim() : null
       };
     } else {
       console.error('Failed to extract profile sections from AI response');
