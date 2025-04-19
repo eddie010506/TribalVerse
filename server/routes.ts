@@ -939,26 +939,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For self-chat rooms, we don't need to send invitations
       // If invitees were provided and not a self-chat, send invitations
       if (!isSelfChat && req.body.invitees && Array.isArray(req.body.invitees)) {
-        const inviterId = req.user!.id;
+        const senderId = req.user!.id;
         const roomId = room.id;
         
         // Send invitations to all invitees
-        for (const inviteeId of req.body.invitees) {
-          // Skip if invitee ID is invalid
-          if (typeof inviteeId !== 'number' || isNaN(inviteeId)) continue;
+        for (const receiverId of req.body.invitees) {
+          // Skip if receiver ID is invalid
+          if (typeof receiverId !== 'number' || isNaN(receiverId)) continue;
           
-          // Skip if invitee is the creator
-          if (inviteeId === inviterId) continue;
+          // Skip if receiver is the creator
+          if (receiverId === senderId) continue;
           
           // Check if user exists
-          const invitee = await storage.getUser(inviteeId);
-          if (!invitee) continue;
+          const receiver = await storage.getUser(receiverId);
+          if (!receiver) continue;
           
           // Create the invitation
           await storage.createRoomInvitation({
             roomId,
-            inviterId,
-            inviteeId
+            senderId,
+            receiverId
           });
         }
         
