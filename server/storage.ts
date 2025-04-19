@@ -182,7 +182,7 @@ export class DatabaseStorage implements IStorage {
     return updatedUser;
   }
 
-  async updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities' | 'email' | 'emailVerified' | 'verificationToken' | 'profilePicture'>>): Promise<User | undefined> {
+  async updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities' | 'email' | 'emailVerified' | 'verificationToken' | 'profilePicture' | 'favoriteFood'>>): Promise<User | undefined> {
     // Check if user exists first
     const existingUser = await this.getUser(userId);
     if (!existingUser) {

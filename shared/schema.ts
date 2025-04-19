@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   hobbies: text("hobbies"),
   interests: text("interests"),
   currentActivities: text("current_activities"),
+  favoriteFood: text("favorite_food"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -26,6 +27,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   hobbies: true,
   interests: true,
   currentActivities: true,
+  favoriteFood: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
