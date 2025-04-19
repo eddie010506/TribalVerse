@@ -125,12 +125,12 @@ export class DatabaseStorage implements IStorage {
   
   async getAllUsersExcept(userId: number): Promise<User[]> {
     try {
-      const result = await pool.query(`
-        SELECT * FROM users 
-        WHERE id != $1
-      `, [userId]);
-      
-      return result.rows;
+      // Use Drizzle ORM instead of direct SQL query
+      return await db
+        .select()
+        .from(users)
+        .where(ne(users.id, userId))
+        .limit(50); // Limit to prevent returning too many users
     } catch (error) {
       console.error("Error getting all users except:", error);
       return [];
