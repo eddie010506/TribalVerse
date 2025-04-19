@@ -43,7 +43,7 @@ export function UserSearch({
         return [];
       }
       try {
-        const res = await apiRequest('GET', `/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+        const res = await apiRequest('GET', `/api/users/search?q=${encodeURIComponent(searchQuery.trim())}`);
         if (!res.ok) {
           console.error('Search failed:', await res.text());
           return [];

@@ -520,7 +520,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User search API
   app.get("/api/users/search", isAuthenticated, async (req, res) => {
     try {
-      const query = req.query.q as string;
+      const query = req.query.q as string | undefined;
+      
+      // Log the query to help debug
+      console.log("User search query:", query);
       
       // Return empty results if no query provided
       if (!query || query.trim() === '') {
@@ -530,50 +533,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if query might be a user ID
       const isNumeric = /^\d+$/.test(query);
       
-      let sql = '';
-      let params: any[] = [];
-      
-      if (isNumeric) {
-        // If query is numeric, prioritize matching user IDs and also search by username
-        sql = `
-          (
-            SELECT id, username, profile_picture as "profilePicture", 1 as priority
-            FROM users 
-            WHERE CAST(id as TEXT) = $1 
-            AND id != $2
-          )
-          UNION ALL
-          (
-            SELECT id, username, profile_picture as "profilePicture", 2 as priority
-            FROM users 
-            WHERE username ILIKE $3 
-            AND id != $2
-            AND CAST(id as TEXT) != $1
-          )
-          ORDER BY priority, username
-          LIMIT 10
-        `;
-        params = [query, req.user!.id, `%${query}%`];
-      } else {
-        // Standard username search
-        sql = `
+      // Simple query to get all users except current user
+      const sql = isNumeric 
+        ? `
           SELECT id, username, profile_picture as "profilePicture"
           FROM users 
-          WHERE username ILIKE $1 
-          AND id != $2
+          WHERE (id::text = $1 OR username ILIKE $2)
+          AND id != $3
           ORDER BY 
             CASE 
-              WHEN username ILIKE $3 THEN 1  -- Exact starts with match
-              ELSE 2                        -- Contains match
-            END,
-            username
+              WHEN id::text = $1 THEN 0
+              WHEN username ILIKE $4 THEN 1
+              ELSE 2
+            END
+          LIMIT 10
+        `
+        : `
+          SELECT id, username, profile_picture as "profilePicture"
+          FROM users 
+          WHERE username ILIKE $2
+          AND id != $3
+          ORDER BY 
+            CASE 
+              WHEN username ILIKE $4 THEN 1
+              ELSE 2 
+            END
           LIMIT 10
         `;
-        params = [`%${query}%`, req.user!.id, `${query}%`];
-      }
+      
+      const params = [
+        query,                 // exact id match
+        `%${query}%`,          // contains
+        req.user?.id || 0,     // current user
+        `${query}%`            // starts with
+      ];
       
       // Execute search query
       const result = await pool.query(sql, params);
+      console.log(`Found ${result.rowCount} users matching "${query}"`);
       
       res.json(result.rows);
     } catch (error) {
