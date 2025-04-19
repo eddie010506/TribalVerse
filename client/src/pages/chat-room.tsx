@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { MessageList } from '@/components/chat/message-list';
 import { ChatInput } from '@/components/chat/chat-input';
+import { InviteUsersDialog } from '@/components/chat/invite-users-dialog';
 import { useWebSocket } from '@/hooks/use-websocket';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -21,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { ArrowLeft, Users, Info, Trash2, MapPin } from 'lucide-react';
+import { ArrowLeft, Users, Info, Trash2, MapPin, UserPlus } from 'lucide-react';
 import { Link } from 'wouter';
 import { MeetupPlacesCard } from '@/components/ai/meetup-places-card';
 import { SimilarUsersCard } from '@/components/ai/similar-users-card';
@@ -177,6 +178,11 @@ export default function ChatRoomPage() {
                   {connected ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
+              
+              {/* Invite users button (shown to all users) */}
+              {room && !room.isSelfChat && (
+                <InviteUsersDialog roomId={roomId} roomName={room?.name || "Chat Room"} />
+              )}
               
               {/* Delete room button (only shown to room creator) */}
               {isRoomCreator && (

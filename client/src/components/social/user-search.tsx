@@ -32,24 +32,31 @@ export function UserSearch({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
 
-  // Search for users when query is at least 2 characters
+  // Search for users when typing
   const {
     data: searchResults = [],
     isLoading,
   } = useQuery<User[], Error>({
     queryKey: ['/api/users/search', searchQuery],
     queryFn: async () => {
-      if (!searchQuery || searchQuery.length < 2 || !isSearching) {
+      if (!searchQuery || !searchQuery.trim() || !isSearching) {
         return [];
       }
-      const res = await apiRequest('GET', `/api/users/search?q=${encodeURIComponent(searchQuery)}`);
-      if (!res.ok) {
-        throw new Error('Failed to search users');
+      try {
+        const res = await apiRequest('GET', `/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+        if (!res.ok) {
+          console.error('Search failed:', await res.text());
+          return [];
+        }
+        const data = await res.json();
+        return data;
+      } catch (err) {
+        console.error('Search error:', err);
+        return [];
       }
-      const data = await res.json();
-      return data;
     },
-    enabled: searchQuery.length >= 2 && isSearching,
+    enabled: searchQuery.trim().length > 0 && isSearching,
+    staleTime: 10000, // Keep data fresh for 10 seconds
   });
 
   // Handle search input changes
@@ -57,8 +64,8 @@ export function UserSearch({
     const query = e.target.value;
     setSearchQuery(query);
     
-    // Automatically search when query length is at least 2 characters
-    if (query.length >= 2) {
+    // Automatically search when query is provided
+    if (query.length > 0) {
       setIsSearching(true);
     } else {
       setIsSearching(false);
@@ -189,7 +196,7 @@ export function UserSearch({
         </Card>
       )}
 
-      {isSearching && searchQuery.length >= 2 && searchResults.length === 0 && !isLoading && (
+      {isSearching && searchQuery.trim() && searchResults.length === 0 && !isLoading && (
         <p className="text-sm text-muted-foreground p-2">No users found</p>
       )}
     </div>

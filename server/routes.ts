@@ -521,8 +521,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/search", isAuthenticated, async (req, res) => {
     try {
       const query = req.query.q as string;
-      if (!query || query.length < 1) {
-        return res.status(400).json({ message: "Search query must be at least 1 character" });
+      
+      // Return empty results if no query provided
+      if (!query || query.trim() === '') {
+        return res.json([]);
       }
       
       // Check if query might be a user ID
