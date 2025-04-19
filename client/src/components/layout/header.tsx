@@ -10,6 +10,7 @@ import {
   SheetTrigger,
   SheetClose
 } from '@/components/ui/sheet';
+import tribalVerseLogo from '../../assets/tribalverse-logo.png';
 
 export function Header() {
   const { user, logoutMutation } = useAuth();
@@ -35,7 +36,7 @@ export function Header() {
         <div className="flex items-center">
           <Link href="/">
             <div className="flex items-center cursor-pointer">
-              <MessageSquare className="h-8 w-8 text-primary" />
+              <img src={tribalVerseLogo} alt="TribalVerse Logo" className="h-10 w-auto" />
               <span className="ml-2 text-xl font-semibold text-neutral-800">TribalVerse</span>
             </div>
           </Link>

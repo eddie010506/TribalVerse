@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Input } from '@/components/ui/input';
@@ -56,7 +56,13 @@ export function UserSearch({
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    setIsSearching(false);
+    
+    // Automatically search when query length is at least 2 characters
+    if (query.length >= 2) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
   };
 
   // Handle search initiation
@@ -72,6 +78,17 @@ export function UserSearch({
       handleSearch();
     }
   };
+  
+  // Auto search when typing
+  useEffect(() => {
+    const delayTimer = setTimeout(() => {
+      if (searchQuery.length >= 1) {
+        setIsSearching(true);
+      }
+    }, 200); // 200ms delay for more responsive suggestions
+    
+    return () => clearTimeout(delayTimer);
+  }, [searchQuery]);
 
   // Check if user is already selected
   const isUserSelected = (userId: number) => {
@@ -85,26 +102,19 @@ export function UserSearch({
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex space-x-2">
+      <div className="relative">
         <Input
-          placeholder={placeholder}
+          placeholder={placeholder || "Type to search for users (suggestions will appear automatically)"}
           value={searchQuery}
           onChange={handleSearchChange}
           onKeyPress={handleKeyPress}
-          className="flex-grow"
+          className="w-full pr-10"
         />
-        <Button 
-          onClick={handleSearch} 
-          type="button" 
-          variant="outline"
-          disabled={searchQuery.length < 2 || isLoading}
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Search className="h-4 w-4" />
-          )}
-        </Button>
+        {isLoading && (
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        )}
       </div>
 
       {/* Selected Users */}
@@ -119,7 +129,10 @@ export function UserSearch({
                 <AvatarImage src={user.profilePicture || undefined} alt={user.username} />
                 <AvatarFallback>{getInitial(user.username)}</AvatarFallback>
               </Avatar>
-              <span className="text-xs font-medium">{user.username}</span>
+              <div className="flex items-center">
+                <span className="text-xs font-medium">{user.username}</span>
+                <span className="text-xs text-muted-foreground ml-1">#{user.id}</span>
+              </div>
               {onRemoveUser && (
                 <button 
                   type="button"
@@ -149,7 +162,10 @@ export function UserSearch({
                           <AvatarImage src={user.profilePicture || undefined} alt={user.username} />
                           <AvatarFallback>{getInitial(user.username)}</AvatarFallback>
                         </Avatar>
-                        <span>{user.username}</span>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{user.username}</span>
+                          <span className="text-xs text-muted-foreground">ID: {user.id}</span>
+                        </div>
                       </div>
                       <Button
                         variant={selected ? "secondary" : "outline"}

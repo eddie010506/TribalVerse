@@ -521,18 +521,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/search", isAuthenticated, async (req, res) => {
     try {
       const query = req.query.q as string;
-      if (!query || query.length < 2) {
-        return res.status(400).json({ message: "Search query must be at least 2 characters" });
+      if (!query || query.length < 1) {
+        return res.status(400).json({ message: "Search query must be at least 1 character" });
       }
       
-      // Search users with raw SQL query
-      const result = await pool.query(`
-        SELECT id, username, profile_picture as "profilePicture"
-        FROM users 
-        WHERE username ILIKE $1 
-        AND id != $2
-        LIMIT 10
-      `, [`%${query}%`, req.user!.id]);
+      // Check if query might be a user ID
+      const isNumeric = /^\d+$/.test(query);
+      
+      let sql = '';
+      let params: any[] = [];
+      
+      if (isNumeric) {
+        // If query is numeric, prioritize matching user IDs and also search by username
+        sql = `
+          (
+            SELECT id, username, profile_picture as "profilePicture", 1 as priority
+            FROM users 
+            WHERE CAST(id as TEXT) = $1 
+            AND id != $2
+          )
+          UNION ALL
+          (
+            SELECT id, username, profile_picture as "profilePicture", 2 as priority
+            FROM users 
+            WHERE username ILIKE $3 
+            AND id != $2
+            AND CAST(id as TEXT) != $1
+          )
+          ORDER BY priority, username
+          LIMIT 10
+        `;
+        params = [query, req.user!.id, `%${query}%`];
+      } else {
+        // Standard username search
+        sql = `
+          SELECT id, username, profile_picture as "profilePicture"
+          FROM users 
+          WHERE username ILIKE $1 
+          AND id != $2
+          ORDER BY 
+            CASE 
+              WHEN username ILIKE $3 THEN 1  -- Exact starts with match
+              ELSE 2                        -- Contains match
+            END,
+            username
+          LIMIT 10
+        `;
+        params = [`%${query}%`, req.user!.id, `${query}%`];
+      }
+      
+      // Execute search query
+      const result = await pool.query(sql, params);
       
       res.json(result.rows);
     } catch (error) {
