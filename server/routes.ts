@@ -145,6 +145,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Serve uploaded files
   app.use('/uploads', express.static(uploadsDir));
+  
+  // Dedicated search API with a path that can't be confused with user IDs
+  app.get("/api/user-search", isAuthenticated, async (req, res) => {
+    try {
+      const query = req.query.q as string | undefined;
+      
+      // Better logging to help debug
+      console.log("User search API called with query:", query, "from user ID:", req.user?.id);
+      
+      // Return empty results if no query provided
+      if (!query || query.trim() === '') {
+        console.log("Empty query, returning empty results");
+        return res.json([]);
+      }
+      
+      // Use the dedicated search method from storage
+      const results = await storage.searchUsers(query, req.user?.id || 0);
+      
+      console.log(`Search API returned ${results.length} results for query "${query}"`);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching users:", error);
+      res.status(500).json({ message: "Failed to search users" });
+    }
+  });
 
   // User profile API
   app.get("/api/profile", isAuthenticated, async (req, res) => {
@@ -517,30 +542,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User search API
-  app.get("/api/users/search", isAuthenticated, async (req, res) => {
-    try {
-      const query = req.query.q as string | undefined;
-      
-      // Better logging to help debug
-      console.log("User search API called with query:", query, "from user ID:", req.user?.id);
-      
-      // Return empty results if no query provided
-      if (!query || query.trim() === '') {
-        console.log("Empty query, returning empty results");
-        return res.json([]);
-      }
-      
-      // Use the dedicated search method from storage
-      const results = await storage.searchUsers(query, req.user?.id || 0);
-      
-      console.log(`Search API returned ${results.length} results for query "${query}"`);
-      res.json(results);
-    } catch (error) {
-      console.error("Error searching users:", error);
-      res.status(500).json({ message: "Failed to search users" });
-    }
-  });
+  // We're removing this route and creating it with a different path
 
   // Notifications API
   app.get("/api/notifications", isAuthenticated, async (req, res) => {

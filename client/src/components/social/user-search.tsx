@@ -37,7 +37,7 @@ export function UserSearch({
     data: searchResults = [],
     isLoading,
   } = useQuery<User[], Error>({
-    queryKey: ['/api/users/search', searchQuery],
+    queryKey: ['/api/user-search', searchQuery],
     queryFn: async () => {
       if (!searchQuery || !searchQuery.trim() || !isSearching) {
         return [];
@@ -46,7 +46,8 @@ export function UserSearch({
         // Add debug output to track search query
         console.log("Executing search API request for:", searchQuery.trim());
         
-        const res = await apiRequest('GET', `/api/users/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        // Use the new API endpoint to avoid routing conflicts
+        const res = await apiRequest('GET', `/api/user-search?q=${encodeURIComponent(searchQuery.trim())}`);
         if (!res.ok) {
           const errorText = await res.text();
           console.error('Search failed:', errorText);
