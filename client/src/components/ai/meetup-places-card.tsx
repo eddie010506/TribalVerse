@@ -1,17 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useAIRecommendations, type MeetupPlace } from "@/hooks/use-ai-recommendations";
-import { Loader2, MapPin, RefreshCw, Coffee, Library, School, Utensils, Building, MapIcon } from "lucide-react";
+import { Loader2, MapPin, RefreshCw, Utensils, Star, MapIcon } from "lucide-react";
 import { useEffect } from "react";
-
-const placeTypeIcons: Record<string, React.ReactNode> = {
-  "cafe": <Coffee className="h-4 w-4" />,
-  "library": <Library className="h-4 w-4" />,
-  "restaurant": <Utensils className="h-4 w-4" />,
-  "campus": <School className="h-4 w-4" />,
-  "building": <Building className="h-4 w-4" />,
-  "default": <MapPin className="h-4 w-4" />
-};
 
 export function MeetupPlacesCard({ roomId }: { roomId: number }) {
   const { 
@@ -29,27 +21,15 @@ export function MeetupPlacesCard({ roomId }: { roomId: number }) {
     }
   }, [getMeetupRecommendations, hasActiveMeetupPlaces, roomId]);
 
-  const getIconForPlaceType = (type: string) => {
-    const lowerType = type.toLowerCase();
-    
-    for (const [key, icon] of Object.entries(placeTypeIcons)) {
-      if (lowerType.includes(key)) {
-        return icon;
-      }
-    }
-    
-    return placeTypeIcons.default;
-  };
-
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardTitle className="text-xl flex items-center gap-2">
-          <MapIcon className="h-5 w-5" />
-          Suggested Meetup Places
+          <Utensils className="h-5 w-5" />
+          Recommended Restaurants
         </CardTitle>
         <CardDescription>
-          AI-powered meetup recommendations for this chat room
+          Top-rated restaurants near 321 Golf Club Rd, Pleasant Hill, CA
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -60,7 +40,7 @@ export function MeetupPlacesCard({ roomId }: { roomId: number }) {
         ) : meetupPlaces.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-muted-foreground mb-4">
-              No meetup suggestions available yet. This feature requires an active chat room with at least 20 messages.
+              No restaurant suggestions available yet. This feature requires an active chat room with at least 20 messages.
             </p>
             <Button onClick={() => refreshMeetupPlaces(roomId)} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -70,10 +50,9 @@ export function MeetupPlacesCard({ roomId }: { roomId: number }) {
         ) : (
           <div className="space-y-4">
             {meetupPlaces.map((place, index) => (
-              <MeetupPlaceItem
+              <RestaurantItem
                 key={index}
                 place={place}
-                icon={getIconForPlaceType(place.type)}
               />
             ))}
             <div className="text-center pt-2">
@@ -93,17 +72,43 @@ export function MeetupPlacesCard({ roomId }: { roomId: number }) {
   );
 }
 
-function MeetupPlaceItem({ place, icon }: { place: MeetupPlace; icon: React.ReactNode }) {
+function RestaurantItem({ place }: { place: MeetupPlace }) {
+  // Extract rating if available
+  const ratingMatch = place.description.match(/Rating: (\d+\.\d+)/);
+  const rating = ratingMatch ? ratingMatch[1] : null;
+  
+  // Parse cuisine types from description
+  const cuisineMatch = place.description.match(/\(([^)]+)\)/);
+  const cuisines = cuisineMatch ? cuisineMatch[1].split(', ') : [];
+  
+  // Clean description by removing the rating and cuisine parts
+  const cleanDescription = place.description
+    .replace(/\([^)]+\)/, '')
+    .replace(/- Rating: \d+\.\d+\/5/, '')
+    .trim();
+  
   return (
-    <div className="flex items-start space-x-4 p-3 rounded-lg border bg-card">
-      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-        {icon}
+    <div className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start">
+        <h3 className="text-md font-medium">{place.name}</h3>
+        {rating && (
+          <div className="flex items-center gap-1 bg-yellow-100 px-2 py-0.5 rounded text-yellow-700">
+            <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
+            <span className="text-xs font-medium">{rating}</span>
+          </div>
+        )}
       </div>
-      <div className="flex-1 min-w-0">
-        <h3 className="text-sm font-medium">{place.name}</h3>
-        <p className="text-xs text-muted-foreground">{place.type}</p>
-        <p className="text-sm mt-1">{place.reason}</p>
+      
+      <div className="mt-1 flex flex-wrap gap-1">
+        {cuisines.map((cuisine, i) => (
+          <Badge key={i} variant="outline" className="text-xs">
+            {cuisine}
+          </Badge>
+        ))}
       </div>
+      
+      <p className="text-sm mt-2 text-muted-foreground">{cleanDescription}</p>
+      <p className="text-sm mt-2">{place.reasonToVisit}</p>
     </div>
   );
 }
