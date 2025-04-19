@@ -19,15 +19,15 @@ interface UserInfo {
 export interface RoomInvitation {
   id: number;
   roomId: number;
-  inviterId: number;
-  inviteeId: number;
+  senderId: number;
+  receiverId: number;
   status: 'pending' | 'accepted' | 'declined';
   createdAt: string;
   updatedAt: string;
   // Enhanced properties (from API)
   room?: RoomInfo;
-  inviter?: UserInfo;
-  invitee?: UserInfo;
+  sender?: UserInfo;
+  receiver?: UserInfo;
 }
 
 interface RoomInvitationsContextType {
@@ -80,10 +80,10 @@ export function RoomInvitationsProvider({ children }: { children: ReactNode }) {
 
   // Create a new invitation
   const createInvitationMutation = useMutation({
-    mutationFn: async ({ roomId, inviteeId }: { roomId: number; inviteeId: number }) => {
+    mutationFn: async ({ roomId, userId }: { roomId: number; userId: number }) => {
       const res = await apiRequest('POST', '/api/room-invitations', {
         roomId, 
-        inviteeId
+        userId
       });
       if (!res.ok) {
         const errorData = await res.json();

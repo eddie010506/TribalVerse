@@ -76,15 +76,15 @@ export function RoomInvitations() {
           <div className="flex items-center gap-2">
             <Avatar className="h-6 w-6">
               <AvatarFallback>
-                {invitation.inviter?.username?.charAt(0) || '?'}
+                {invitation.sender?.username?.charAt(0) || '?'}
               </AvatarFallback>
               <AvatarImage 
-                src={invitation.inviter?.profilePicture || undefined} 
-                alt={invitation.inviter?.username || ''} 
+                src={invitation.sender?.profilePicture || undefined} 
+                alt={invitation.sender?.username || ''} 
               />
             </Avatar>
             <span className="text-sm font-medium">
-              {invitation.inviter?.username || 'Someone'} invited you to join
+              {invitation.sender?.username || 'Someone'} invited you to join
             </span>
           </div>
           
