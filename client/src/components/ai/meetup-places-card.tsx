@@ -74,18 +74,20 @@ export function MeetupPlacesCard({ roomId }: { roomId: number }) {
 
 function RestaurantItem({ place }: { place: MeetupPlace }) {
   // Extract rating if available
-  const ratingMatch = place.description.match(/Rating: (\d+\.\d+)/);
-  const rating = ratingMatch ? ratingMatch[1] : null;
+  const ratingMatch = place.description ? place.description.match(/Rating: (\d+\.\d+)/) : null;
+  const rating = ratingMatch ? ratingMatch[1] : place.rating || null;
   
   // Parse cuisine types from description
-  const cuisineMatch = place.description.match(/\(([^)]+)\)/);
+  const cuisineMatch = place.description ? place.description.match(/\(([^)]+)\)/) : null;
   const cuisines = cuisineMatch ? cuisineMatch[1].split(', ') : [];
   
   // Clean description by removing the rating and cuisine parts
-  const cleanDescription = place.description
-    .replace(/\([^)]+\)/, '')
-    .replace(/- Rating: \d+\.\d+\/5/, '')
-    .trim();
+  const cleanDescription = place.description 
+    ? place.description
+        .replace(/\([^)]+\)/, '')
+        .replace(/- Rating: \d+\.\d+\/5/, '')
+        .trim()
+    : '';
   
   return (
     <div className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow">
@@ -100,7 +102,7 @@ function RestaurantItem({ place }: { place: MeetupPlace }) {
       </div>
       
       <div className="mt-1 flex flex-wrap gap-1">
-        {cuisines.map((cuisine, i) => (
+        {cuisines.map((cuisine: string, i: number) => (
           <Badge key={i} variant="outline" className="text-xs">
             {cuisine}
           </Badge>
