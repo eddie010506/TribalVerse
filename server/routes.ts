@@ -207,6 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hobbies: z.string().optional(),
         interests: z.string().optional(),
         currentActivities: z.string().optional(),
+        favoriteFood: z.string().optional(),
       });
       
       const validatedData = profileSchema.parse(req.body);

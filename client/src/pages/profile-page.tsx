@@ -72,6 +72,7 @@ interface ProfileData {
   hobbies: string | null;
   interests: string | null;
   currentActivities: string | null;
+  favoriteFood: string | null;
 }
 
 export default function ProfilePage() {
@@ -90,6 +91,7 @@ export default function ProfilePage() {
   const [hobbies, setHobbies] = useState("");
   const [interests, setInterests] = useState("");
   const [currentActivities, setCurrentActivities] = useState("");
+  const [favoriteFood, setFavoriteFood] = useState("");
   const [email, setEmail] = useState("");
   const [isEditingEmail, setIsEditingEmail] = useState(false);
 
@@ -108,6 +110,7 @@ export default function ProfilePage() {
       setHobbies(profile.hobbies || "");
       setInterests(profile.interests || "");
       setCurrentActivities(profile.currentActivities || "");
+      setFavoriteFood(profile.favoriteFood || "");
       setEmail(profile.email || "");
     }
   }, [profile]);
@@ -131,6 +134,7 @@ export default function ProfilePage() {
       hobbies?: string;
       interests?: string;
       currentActivities?: string;
+      favoriteFood?: string;
     }) => {
       const res = await apiRequest("PATCH", "/api/profile", profileData);
       return await res.json();
@@ -221,6 +225,7 @@ export default function ProfilePage() {
       hobbies,
       interests,
       currentActivities,
+      favoriteFood,
     });
   };
 
@@ -229,6 +234,7 @@ export default function ProfilePage() {
     setHobbies(profile?.hobbies || "");
     setInterests(profile?.interests || "");
     setCurrentActivities(profile?.currentActivities || "");
+    setFavoriteFood(profile?.favoriteFood || "");
     setIsEditing(false);
   };
 
@@ -502,6 +508,28 @@ export default function ProfilePage() {
                 ) : (
                   <p className="text-gray-700 whitespace-pre-wrap">
                     {profile?.currentActivities || "No current activities added yet"}
+                  </p>
+                )}
+              </div>
+              
+              <Separator />
+              
+              <div>
+                <h3 className="text-xl font-semibold mb-2">Favorite Food</h3>
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="favoriteFood">What foods do you love?</Label>
+                    <Textarea
+                      id="favoriteFood"
+                      placeholder="e.g., Italian pasta, Japanese sushi, Mexican tacos"
+                      value={favoriteFood}
+                      onChange={(e) => setFavoriteFood(e.target.value)}
+                      className="min-h-[100px]"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-gray-700 whitespace-pre-wrap">
+                    {profile?.favoriteFood || "No favorite foods added yet"}
                   </p>
                 )}
               </div>
