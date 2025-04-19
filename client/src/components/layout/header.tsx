@@ -36,7 +36,7 @@ export function Header() {
           <Link href="/">
             <div className="flex items-center cursor-pointer">
               <MessageSquare className="h-8 w-8 text-primary" />
-              <span className="ml-2 text-xl font-semibold text-neutral-800">ChatterBox</span>
+              <span className="ml-2 text-xl font-semibold text-neutral-800">TribalVerse</span>
             </div>
           </Link>
         </div>

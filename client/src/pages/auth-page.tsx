@@ -97,7 +97,7 @@ export default function AuthPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center">
             <MessageSquare className="h-8 w-8 text-primary" />
-            <span className="ml-2 text-xl font-semibold text-neutral-800">ChatterBox</span>
+            <span className="ml-2 text-xl font-semibold text-neutral-800">TribalVerse</span>
           </div>
           <div>
             <WouterLink href="#" className="text-primary hover:text-blue-700 font-medium">
@@ -124,7 +124,7 @@ export default function AuthPage() {
                 <Card className="border shadow-sm">
                   <CardHeader className="text-center">
                     <CardTitle className="text-2xl font-bold text-neutral-800">
-                      Sign in to ChatterBox
+                      Sign in to TribalVerse
                     </CardTitle>
                     <CardDescription>
                       Connect and chat with friends
@@ -215,7 +215,7 @@ export default function AuthPage() {
                       Create an account
                     </CardTitle>
                     <CardDescription>
-                      Join ChatterBox to start chatting
+                      Join TribalVerse to start chatting
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -322,7 +322,7 @@ export default function AuthPage() {
         <div className="flex-1 bg-primary p-8 flex flex-col justify-center items-center text-white hidden md:flex">
           <div className="max-w-md text-center">
             <MessageSquare className="h-16 w-16 mx-auto mb-6" />
-            <h2 className="text-3xl font-bold mb-4">Connect with friends in ChatterBox</h2>
+            <h2 className="text-3xl font-bold mb-4">Connect with friends in TribalVerse</h2>
             <p className="text-lg text-blue-100 mb-8">
               Create chat rooms, share messages and images, and stay connected with your favorite people.
             </p>
