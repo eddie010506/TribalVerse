@@ -14,6 +14,7 @@ export interface MeetupPlace {
   description: string;
   reasonToVisit: string;
   rating?: string;
+  priceRange?: string;
 }
 
 export function useAIRecommendations() {

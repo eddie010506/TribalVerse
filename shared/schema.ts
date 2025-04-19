@@ -408,6 +408,7 @@ export const placeRecommendations = pgTable("place_recommendations", {
   type: text("type"),
   reason: text("reason"),
   rating: text("rating"),
+  priceRange: text("price_range"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
 });
@@ -420,6 +421,7 @@ export const insertPlaceRecommendationSchema = createInsertSchema(placeRecommend
   type: true,
   reason: true,
   rating: true,
+  priceRange: true,
   expiresAt: true,
 });
 

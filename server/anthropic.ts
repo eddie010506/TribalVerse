@@ -256,7 +256,7 @@ export async function recommendMeetupPlaces(
   chatRoomName: string,
   chatParticipantCount: number,
   foodPreferences?: string
-): Promise<{ places: Array<{ name: string; description: string; reasonToVisit: string; rating?: string; }> }> {
+): Promise<{ places: Array<{ name: string; description: string; reasonToVisit: string; rating?: string; priceRange?: string; }> }> {
   try {
     // Real restaurant data near 321 Golf Club Rd, Pleasant Hill, CA 94523 with ratings over 4.0
     const restaurantData = [
@@ -265,105 +265,160 @@ export async function recommendMeetupPlaces(
         description: "Deep dish Chicago-style pizza restaurant",
         rating: "4.6",
         cuisine: "Pizza, Italian",
-        address: "140 Crescent Dr, Pleasant Hill"
+        address: "140 Crescent Dr, Pleasant Hill",
+        priceRange: "$15-25"
       },
       {
         name: "Nama Sushi",
         description: "Japanese restaurant serving fresh sushi and traditional dishes",
         rating: "4.5",
         cuisine: "Japanese, Sushi",
-        address: "1506 Contra Costa Blvd, Pleasant Hill"
+        address: "1506 Contra Costa Blvd, Pleasant Hill",
+        priceRange: "$25-40"
       },
       {
         name: "Slow Hand BBQ",
         description: "Texas-style barbecue restaurant with homemade sides",
         rating: "4.4",
         cuisine: "BBQ, American",
-        address: "1941 Oak Park Blvd, Pleasant Hill"
+        address: "1941 Oak Park Blvd, Pleasant Hill",
+        priceRange: "$15-25"
       },
       {
         name: "Limon Rotisserie",
         description: "Peruvian restaurant known for rotisserie chicken and ceviche",
         rating: "4.3",
         cuisine: "Peruvian, Latin American",
-        address: "60 Crescent Dr, Pleasant Hill"
+        address: "60 Crescent Dr, Pleasant Hill",
+        priceRange: "$20-35"
       },
       {
         name: "Jack's Restaurant & Bar",
         description: "American restaurant with casual dining and diverse menu",
         rating: "4.2",
         cuisine: "American, Bar",
-        address: "60 Crescent Dr, Pleasant Hill"
+        address: "60 Crescent Dr, Pleasant Hill",
+        priceRange: "$15-30"
       },
       {
         name: "Burma 2",
         description: "Burmese restaurant with authentic dishes",
         rating: "4.5",
         cuisine: "Burmese, Asian Fusion",
-        address: "1616 N Main St, Walnut Creek"
+        address: "1616 N Main St, Walnut Creek",
+        priceRange: "$15-25"
       },
       {
         name: "Yalla Mediterranean",
         description: "Fast-casual Mediterranean restaurant with fresh ingredients",
         rating: "4.3",
         cuisine: "Mediterranean, Middle Eastern",
-        address: "1813 Mt Diablo Blvd, Walnut Creek"
+        address: "1813 Mt Diablo Blvd, Walnut Creek",
+        priceRange: "$10-18"
       },
       {
         name: "Millie's Kitchen",
         description: "Cozy breakfast and lunch spot with homemade specialties",
         rating: "4.4",
         cuisine: "American, Breakfast",
-        address: "1018 Oak St, Clayton"
+        address: "1018 Oak St, Clayton",
+        priceRange: "$10-18"
       },
       {
         name: "Patxi's Pizza",
         description: "Chicago-style deep dish and thin crust pizza restaurant",
         rating: "4.3",
         cuisine: "Pizza, Italian",
-        address: "185 Crescent Dr, Pleasant Hill"
+        address: "185 Crescent Dr, Pleasant Hill",
+        priceRange: "$15-25"
       },
       {
         name: "Koi Palace Express",
         description: "Authentic dim sum and Cantonese cuisine",
         rating: "4.2",
         cuisine: "Chinese, Dim Sum",
-        address: "Pleasant Hill"
+        address: "Pleasant Hill",
+        priceRange: "$12-30"
       },
       {
         name: "Rooftop Restaurant & Bar",
         description: "Modern American cuisine with rooftop views",
         rating: "4.2",
         cuisine: "American, Bar",
-        address: "1500 Mt Diablo Blvd, Walnut Creek"
+        address: "1500 Mt Diablo Blvd, Walnut Creek",
+        priceRange: "$30-60"
       },
       {
         name: "Babalou's Mediterranean",
         description: "Fresh Mediterranean cuisine with homemade pita bread",
         rating: "4.3",
         cuisine: "Mediterranean, Greek",
-        address: "Downtown Pleasant Hill"
+        address: "Downtown Pleasant Hill",
+        priceRange: "$12-25"
       },
       {
         name: "Los Panchos Mexican Restaurant",
         description: "Family-owned Mexican restaurant with traditional recipes",
         rating: "4.4",
         cuisine: "Mexican",
-        address: "5872 Pacheco Blvd, Pacheco"
+        address: "5872 Pacheco Blvd, Pacheco",
+        priceRange: "$12-22"
       },
       {
         name: "Yard House",
         description: "Modern American restaurant with extensive beer selection",
         rating: "4.1",
         cuisine: "American, Bar",
-        address: "Broadway Plaza, Walnut Creek"
+        address: "Broadway Plaza, Walnut Creek",
+        priceRange: "$20-35"
       },
       {
         name: "Ramen Hiroshi",
         description: "Authentic Japanese ramen restaurant",
         rating: "4.4",
         cuisine: "Japanese, Ramen",
-        address: "1633 Bonanza St, Walnut Creek"
+        address: "1633 Bonanza St, Walnut Creek",
+        priceRange: "$12-20"
+      },
+      {
+        name: "Ruth's Chris Steak House",
+        description: "Upscale steakhouse chain known for sizzling steaks",
+        rating: "4.4",
+        cuisine: "Steakhouse, Fine Dining",
+        address: "1553 Olympic Blvd, Walnut Creek",
+        priceRange: "$40-80"
+      },
+      {
+        name: "In-N-Out Burger",
+        description: "Popular fast food burger chain with simple menu",
+        rating: "4.5",
+        cuisine: "Fast Food, Burgers",
+        address: "570 Contra Costa Blvd, Pleasant Hill",
+        priceRange: "$5-10"
+      },
+      {
+        name: "Fleming's Prime Steakhouse",
+        description: "Upscale steakhouse with fine wines",
+        rating: "4.3",
+        cuisine: "Steakhouse, Fine Dining",
+        address: "1685 Mt. Diablo Blvd, Walnut Creek",
+        priceRange: "$45-90"
+      },
+      {
+        name: "Chipotle Mexican Grill",
+        description: "Fast-casual Mexican restaurant with customizable options",
+        rating: "4.0",
+        cuisine: "Mexican, Fast Casual",
+        address: "35 Crescent Dr, Pleasant Hill",
+        priceRange: "$10-15"
+      },
+      {
+        name: "P.F. Chang's",
+        description: "Asian-themed restaurant chain with diverse menu",
+        rating: "4.0",
+        cuisine: "Chinese, Asian Fusion",
+        address: "1330 Rosewood Dr, Walnut Creek",
+        priceRange: "$18-30"
       }
     ];
 
@@ -414,7 +469,8 @@ export async function recommendMeetupPlaces(
         name: restaurant.name,
         description: `${restaurant.description} (${restaurant.cuisine}) - Rating: ${restaurant.rating}/5`,
         reasonToVisit,
-        rating: restaurant.rating
+        rating: restaurant.rating,
+        priceRange: restaurant.priceRange
       };
     });
     

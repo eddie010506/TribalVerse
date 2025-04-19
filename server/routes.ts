@@ -1839,7 +1839,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             name: rec.placeName || rec.name || '',
             description: rec.description || rec.type || '',
             reasonToVisit: rec.reason || '',
-            rating: rec.rating || ''
+            rating: rec.rating || '',
+            priceRange: rec.priceRange || ''
           })),
           fromCache: true
         });
@@ -1911,8 +1912,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.createPlaceRecommendation({
                 roomId,
                 placeName: place.name,
+                name: place.name,
                 description: place.description || '',
                 reason: place.reasonToVisit || '',
+                rating: place.rating || '',
+                priceRange: place.priceRange || '',
                 expiresAt
               });
             } catch (error) {
