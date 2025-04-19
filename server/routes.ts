@@ -1634,10 +1634,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found", users: [] });
       }
       
-      // Make sure user has interests and hobbies
-      if (!currentUser.hobbies && !currentUser.interests) {
+      // Make sure user has basic profile information
+      const hasHobbies = !!currentUser.hobbies;
+      const hasInterests = !!currentUser.interests;
+      const hasFavoriteFood = !!currentUser.favoriteFood;
+      
+      // Check if profile is sufficiently complete for recommendations
+      if (!hasHobbies && !hasInterests && !hasFavoriteFood) {
         return res.status(400).json({ 
-          message: "You need to set up your hobbies and interests first",
+          message: "You need to complete your profile with hobbies, interests, or favorite food preferences",
           isProfileComplete: false,
           users: []
         });
@@ -1674,9 +1679,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // No cached recommendations, get all users except current user
       const allUsers = await storage.getAllUsersExcept(userId);
       
-      // User's interests and hobbies
+      // User's interests, hobbies, and favorite foods
       const userHobbies = (currentUser.hobbies || "").toLowerCase().split(",").map((h: string) => h.trim()).filter((h: string) => h);
       const userInterests = (currentUser.interests || "").toLowerCase().split(",").map((i: string) => i.trim()).filter((i: string) => i);
+      const userFavoriteFoods = (currentUser.favoriteFood || "").toLowerCase().split(",").map((f: string) => f.trim()).filter((f: string) => f);
       
       // Algorithm-based similarity calculation
       const scoredUsers = allUsers
@@ -1685,9 +1691,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let score = 0;
           let matchReasons: string[] = [];
           
-          // Parse other user's hobbies and interests
+          // Parse other user's hobbies, interests, and favorite foods
           const otherHobbies = (otherUser.hobbies || "").toLowerCase().split(",").map((h: string) => h.trim()).filter((h: string) => h);
           const otherInterests = (otherUser.interests || "").toLowerCase().split(",").map((i: string) => i.trim()).filter((i: string) => i);
+          const otherFavoriteFoods = (otherUser.favoriteFood || "").toLowerCase().split(",").map((f: string) => f.trim()).filter((f: string) => f);
           
           // Calculate hobby matches
           const hobbyMatches = userHobbies.filter(hobby => otherHobbies.some((oh: string) => oh.includes(hobby) || hobby.includes(oh)));
@@ -1710,6 +1717,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               matchReasons.push(`Similar interest: ${interestMatches[0]}`);
             } else {
               matchReasons.push(`Shares ${interestMatches.length} interests including ${interestMatches.slice(0, 2).join(", ")}`);
+            }
+          }
+          
+          // Calculate favorite food matches
+          const foodMatches = userFavoriteFoods.filter(food => otherFavoriteFoods.some((of: string) => of.includes(food) || food.includes(of)));
+          score += foodMatches.length * 1.5; // Food preferences are weighted between hobbies and interests
+          
+          if (foodMatches.length > 0) {
+            if (foodMatches.length === 1) {
+              matchReasons.push(`Similar food taste: ${foodMatches[0]}`);
+            } else {
+              matchReasons.push(`Shares ${foodMatches.length} favorite foods including ${foodMatches.slice(0, 2).join(", ")}`);
             }
           }
           
@@ -1830,7 +1849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Combine interests and activities
+      // Combine interests, activities, and food preferences
       const allInterests = participants
         .map(p => p.interests)
         .filter(Boolean)
@@ -1840,14 +1859,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .map(p => p.currentActivities)
         .filter(Boolean)
         .join(", ");
+        
+      const allFoodPreferences = participants
+        .map(p => p.favoriteFood)
+        .filter(Boolean)
+        .join(", ");
       
       try {
-        // Get meetup recommendations using AI
+        // Get meetup recommendations using AI with food preferences
         const recommendations = await recommendMeetupPlaces(
           allInterests,
           allActivities,
           room.name,
-          chatParticipantCount
+          chatParticipantCount,
+          allFoodPreferences
         );
         
         // Cache the recommendations
