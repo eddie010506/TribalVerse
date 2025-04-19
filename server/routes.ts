@@ -1836,9 +1836,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Transform cached recommendations to expected format
         return res.json({
           places: cachedRecommendations.map(rec => ({
-            name: rec.placeName,
-            description: rec.description,
-            reasonToVisit: rec.reason
+            name: rec.placeName || rec.name || '',
+            description: rec.description || rec.type || '',
+            reasonToVisit: rec.reason || '',
+            rating: rec.rating || ''
           })),
           fromCache: true
         });
@@ -1906,13 +1907,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Save each recommendation to the cache
           await Promise.all(recommendations.places.map(async (place: any) => {
-            await storage.createPlaceRecommendation({
-              roomId,
-              placeName: place.name,
-              description: place.description,
-              reason: place.reasonToVisit,
-              expiresAt
-            });
+            try {
+              await storage.createPlaceRecommendation({
+                roomId,
+                placeName: place.name,
+                description: place.description || '',
+                reason: place.reasonToVisit || '',
+                expiresAt
+              });
+            } catch (error) {
+              console.error("Error creating place recommendation:", error, place);
+            }
           }));
         }
         

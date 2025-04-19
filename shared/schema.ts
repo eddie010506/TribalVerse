@@ -402,9 +402,12 @@ export const userRecommendationsRelations = relations(userRecommendations, ({ on
 export const placeRecommendations = pgTable("place_recommendations", {
   id: serial("id").primaryKey(),
   roomId: integer("room_id").notNull().references(() => chatRooms.id, { onDelete: "cascade" }),
-  placeName: text("place_name").notNull(),
+  placeName: text("place_name"),
+  name: text("name"),
   description: text("description"),
+  type: text("type"),
   reason: text("reason"),
+  rating: text("rating"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
 });
@@ -412,8 +415,11 @@ export const placeRecommendations = pgTable("place_recommendations", {
 export const insertPlaceRecommendationSchema = createInsertSchema(placeRecommendations).pick({
   roomId: true,
   placeName: true,
+  name: true,
   description: true,
+  type: true,
   reason: true,
+  rating: true,
   expiresAt: true,
 });
 
