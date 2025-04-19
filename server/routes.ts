@@ -1116,11 +1116,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/room-invitations", isAuthenticated, isEmailVerified, async (req, res) => {
     try {
-      const { roomId, inviteeId } = req.body;
-      const inviterId = req.user!.id;
+      const { roomId, userId } = req.body;
+      const senderId = req.user!.id;
       
-      if (!roomId || isNaN(roomId) || !inviteeId || isNaN(inviteeId)) {
-        return res.status(400).json({ message: "Invalid room ID or invitee ID" });
+      if (!roomId || isNaN(roomId) || !userId || isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid room ID or user ID" });
       }
       
       // Check if room exists
@@ -1129,27 +1129,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Room not found" });
       }
       
-      // Check if user is the room creator or has permission to invite
-      if (room.creatorId !== inviterId) {
-        return res.status(403).json({ message: "You don't have permission to invite users to this room" });
+      // Don't allow invitations to self chat rooms
+      if (room.isSelfChat) {
+        return res.status(403).json({ message: "Cannot invite users to a self chat room" });
       }
       
-      // Check if invitee exists
-      const invitee = await storage.getUser(inviteeId);
-      if (!invitee) {
-        return res.status(404).json({ message: "Invitee not found" });
+      // Check if the receiver exists
+      const receiver = await storage.getUser(userId);
+      if (!receiver) {
+        return res.status(404).json({ message: "User not found" });
       }
       
       // Don't allow inviting self
-      if (inviterId === inviteeId) {
+      if (senderId === userId) {
         return res.status(400).json({ message: "You cannot invite yourself" });
+      }
+      
+      // Check if invitation already exists
+      const sentInvitations = await storage.getSentRoomInvitations(senderId);
+      const existingInvitation = sentInvitations.find(
+        inv => inv.roomId === roomId && inv.receiverId === userId && inv.status === 'pending'
+      );
+      
+      if (existingInvitation) {
+        return res.status(400).json({ message: "You have already invited this user to this room" });
       }
       
       // Create the invitation
       const invitation = await storage.createRoomInvitation({
-        roomId,
-        inviterId,
-        inviteeId
+        senderId: senderId,
+        receiverId: userId,
+        roomId: roomId,
+        status: 'pending'
+      });
+      
+      // Create notification for receiver
+      await storage.createNotification({
+        userId: userId,
+        type: "room_invitation",
+        message: `${req.user!.username} invited you to join "${room.name}"`,
+        actorId: senderId,
+        entityType: "room_invitation",
+        entityId: invitation.id
       });
       
       // Send a refresh_notifications WebSocket event

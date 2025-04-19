@@ -219,8 +219,8 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 export const roomInvitations = pgTable("room_invitations", {
   id: serial("id").primaryKey(),
   roomId: integer("room_id").notNull().references(() => chatRooms.id),
-  inviterId: integer("inviter_id").notNull().references(() => users.id),
-  inviteeId: integer("invitee_id").notNull().references(() => users.id),
+  senderId: integer("sender_id").notNull().references(() => users.id),
+  receiverId: integer("receiver_id").notNull().references(() => users.id),
   status: text("status").notNull().default("pending"), // pending, accepted, declined
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -228,8 +228,9 @@ export const roomInvitations = pgTable("room_invitations", {
 
 export const insertRoomInvitationSchema = createInsertSchema(roomInvitations).pick({
   roomId: true,
-  inviterId: true,
-  inviteeId: true,
+  senderId: true,
+  receiverId: true,
+  status: true,
 });
 
 export type InsertRoomInvitation = z.infer<typeof insertRoomInvitationSchema>;
@@ -241,12 +242,12 @@ export const roomInvitationsRelations = relations(roomInvitations, ({ one }) => 
     fields: [roomInvitations.roomId],
     references: [chatRooms.id],
   }),
-  inviter: one(users, {
-    fields: [roomInvitations.inviterId],
+  sender: one(users, {
+    fields: [roomInvitations.senderId],
     references: [users.id],
   }),
-  invitee: one(users, {
-    fields: [roomInvitations.inviteeId],
+  receiver: one(users, {
+    fields: [roomInvitations.receiverId],
     references: [users.id],
   }),
 }));
