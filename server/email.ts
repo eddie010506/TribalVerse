@@ -39,8 +39,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   }
 
   try {
-    const senderEmail = process.env.EMAIL_FROM || 'noreply@chatterbox.com';
-    const senderName = 'ChatterBox';
+    const senderEmail = process.env.EMAIL_FROM || 'noreply@tribalverse.com';
+    const senderName = 'TribalVerse';
     
     // Use the v3.1 API format with older client
     const response = await new Promise((resolve, reject) => {
@@ -86,11 +86,11 @@ export async function sendVerificationEmail(email: string, username: string, tok
   
   const emailOptions: EmailOptions = {
     to: email,
-    subject: 'Verify your email address - ChatterBox',
-    text: `Hi ${username},\n\nPlease verify your email address by clicking the link below:\n\n${verificationUrl}\n\nThis link will expire in 24 hours.\n\nThank you,\nThe ChatterBox Team`,
+    subject: 'Verify your email address - TribalVerse',
+    text: `Hi ${username},\n\nPlease verify your email address by clicking the link below:\n\n${verificationUrl}\n\nThis link will expire in 24 hours.\n\nThank you,\nThe TribalVerse Team`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #4a5568;">Verify your ChatterBox account</h2>
+        <h2 style="color: #4a5568;">Verify your TribalVerse account</h2>
         <p>Hi ${username},</p>
         <p>Please verify your email address by clicking the button below:</p>
         <p style="margin: 20px 0;">
@@ -101,7 +101,7 @@ export async function sendVerificationEmail(email: string, username: string, tok
           ${verificationUrl}
         </p>
         <p>This link will expire in 24 hours.</p>
-        <p>Thank you,<br>The ChatterBox Team</p>
+        <p>Thank you,<br>The TribalVerse Team</p>
       </div>
     `,
   };
