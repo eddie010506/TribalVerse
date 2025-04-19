@@ -20,6 +20,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getAllUsersExcept(userId: number): Promise<User[]>;
+  searchUsers(query: string, currentUserId: number): Promise<Partial<User>[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUserProfile(userId: number, updates: Partial<Pick<User, 'hobbies' | 'interests' | 'currentActivities' | 'profilePicture'>>): Promise<User | undefined>;
   setVerificationToken(userId: number, token: string): Promise<boolean>;
@@ -133,6 +134,71 @@ export class DatabaseStorage implements IStorage {
         .limit(50); // Limit to prevent returning too many users
     } catch (error) {
       console.error("Error getting all users except:", error);
+      return [];
+    }
+  }
+  
+  async searchUsers(query: string, currentUserId: number): Promise<Partial<User>[]> {
+    try {
+      console.log(`Searching for users matching "${query}" (requested by user ${currentUserId})`);
+      
+      // Basic validation
+      if (!query || query.trim() === '') {
+        return [];
+      }
+      
+      // Check if query might be numeric (user ID)
+      const isNumeric = /^\d+$/.test(query);
+      const trimmedQuery = query.trim().toLowerCase();
+      
+      // Get users using Drizzle ORM
+      const allUsers = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          profilePicture: users.profilePicture
+        })
+        .from(users)
+        .where(ne(users.id, currentUserId));
+      
+      // Filter users based on query
+      let matchedUsers = allUsers.filter(user => {
+        // For numeric queries, check exact ID or username contains query
+        if (isNumeric) {
+          return user.id.toString() === trimmedQuery || 
+                 user.username.toLowerCase().includes(trimmedQuery);
+        }
+        // For text queries, just check if username contains query
+        return user.username.toLowerCase().includes(trimmedQuery);
+      });
+      
+      // Sort results (exact matches first)
+      matchedUsers.sort((a, b) => {
+        // Exact ID match gets highest priority
+        if (isNumeric && a.id.toString() === trimmedQuery) return -1;
+        if (isNumeric && b.id.toString() === trimmedQuery) return 1;
+        
+        // Exact username match gets next priority
+        if (a.username.toLowerCase() === trimmedQuery) return -1;
+        if (b.username.toLowerCase() === trimmedQuery) return 1;
+        
+        // Username starts with query gets next priority
+        const aStartsWith = a.username.toLowerCase().startsWith(trimmedQuery);
+        const bStartsWith = b.username.toLowerCase().startsWith(trimmedQuery);
+        if (aStartsWith && !bStartsWith) return -1;
+        if (!aStartsWith && bStartsWith) return 1;
+        
+        // Default to alphabetical sort
+        return a.username.localeCompare(b.username);
+      });
+      
+      // Limit to top 10 results
+      matchedUsers = matchedUsers.slice(0, 10);
+      
+      console.log(`Found ${matchedUsers.length} matching users`);
+      return matchedUsers;
+    } catch (error) {
+      console.error("Error searching users:", error);
       return [];
     }
   }

@@ -523,40 +523,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const query = req.query.q as string | undefined;
       
       // Better logging to help debug
-      console.log("User search query:", query, "from user ID:", req.user?.id);
+      console.log("User search API called with query:", query, "from user ID:", req.user?.id);
       
       // Return empty results if no query provided
       if (!query || query.trim() === '') {
+        console.log("Empty query, returning empty results");
         return res.json([]);
       }
       
-      // Check if query might be a user ID
-      const isNumeric = /^\d+$/.test(query);
+      // Use the dedicated search method from storage
+      const results = await storage.searchUsers(query, req.user?.id || 0);
       
-      // Instead of direct SQL, use the user's getAll method and filter
-      // This avoids SQL errors from the direct query
-      const allUsers = await storage.getAllUsersExcept(req.user?.id || 0);
-      
-      const filteredUsers = allUsers.filter(user => {
-        // For numeric queries, check if ID or username matches
-        if (isNumeric) {
-          return user.id.toString() === query || 
-                 user.username.toLowerCase().includes(query.toLowerCase());
-        }
-        // For text queries, check if username contains the query
-        return user.username.toLowerCase().includes(query.toLowerCase());
-      })
-      .map(user => ({
-        id: user.id,
-        username: user.username,
-        profilePicture: user.profilePicture
-      }))
-      // Limit to 10 results
-      .slice(0, 10);
-      
-      console.log(`Found ${filteredUsers.length} users matching "${query}"`);
-      
-      res.json(filteredUsers);
+      console.log(`Search API returned ${results.length} results for query "${query}"`);
+      res.json(results);
     } catch (error) {
       console.error("Error searching users:", error);
       res.status(500).json({ message: "Failed to search users" });
