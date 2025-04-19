@@ -43,12 +43,17 @@ export function UserSearch({
         return [];
       }
       try {
+        // Add debug output to track search query
+        console.log("Executing search API request for:", searchQuery.trim());
+        
         const res = await apiRequest('GET', `/api/users/search?q=${encodeURIComponent(searchQuery.trim())}`);
         if (!res.ok) {
-          console.error('Search failed:', await res.text());
+          const errorText = await res.text();
+          console.error('Search failed:', errorText);
           return [];
         }
         const data = await res.json();
+        console.log("Search results:", data);
         return data;
       } catch (err) {
         console.error('Search error:', err);
@@ -57,6 +62,7 @@ export function UserSearch({
     },
     enabled: searchQuery.trim().length > 0 && isSearching,
     staleTime: 10000, // Keep data fresh for 10 seconds
+    retry: false, // Don't retry on failure
   });
 
   // Handle search input changes
@@ -89,8 +95,11 @@ export function UserSearch({
   // Auto search when typing
   useEffect(() => {
     const delayTimer = setTimeout(() => {
-      if (searchQuery.length >= 1) {
+      if (searchQuery.trim().length >= 1) {
         setIsSearching(true);
+        console.log("Searching for:", searchQuery);
+      } else {
+        setIsSearching(false);
       }
     }, 200); // 200ms delay for more responsive suggestions
     
