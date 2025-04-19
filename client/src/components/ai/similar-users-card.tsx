@@ -28,7 +28,7 @@ export function SimilarUsersCard() {
       <CardHeader>
         <CardTitle className="text-xl flex items-center gap-2">
           <Users className="h-5 w-5" />
-          People You Might Know
+          How about chatting with these people?
         </CardTitle>
         <CardDescription>
           Algorithm-powered recommendations based on your interests
@@ -76,7 +76,7 @@ function SimilarUserItem({ user }: { user: SimilarUser }) {
         </AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
-        <Link href={`/user/${user.id}`}>
+        <Link href={`/users/${user.id}`}>
           <span className="text-sm font-medium cursor-pointer hover:underline">@{user.username}</span>
         </Link>
         <p className="text-sm text-muted-foreground">{user.matchReason}</p>
