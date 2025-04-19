@@ -558,7 +558,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(roomInvitations)
-      .where(eq(roomInvitations.inviterId, userId))
+      .where(eq(roomInvitations.senderId, userId))
       .orderBy(desc(roomInvitations.createdAt));
   }
 
@@ -566,7 +566,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(roomInvitations)
-      .where(eq(roomInvitations.inviteeId, userId))
+      .where(eq(roomInvitations.receiverId, userId))
       .orderBy(desc(roomInvitations.createdAt));
   }
 
@@ -578,8 +578,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(roomInvitations.roomId, invitation.roomId),
-          eq(roomInvitations.inviterId, invitation.inviterId),
-          eq(roomInvitations.inviteeId, invitation.inviteeId)
+          eq(roomInvitations.senderId, invitation.senderId),
+          eq(roomInvitations.receiverId, invitation.receiverId)
         )
       );
 
@@ -592,14 +592,14 @@ export class DatabaseStorage implements IStorage {
       .values(invitation)
       .returning();
 
-    // Get inviter and room information for the notification
-    const [inviter] = await db
+    // Get sender and room information for the notification
+    const [sender] = await db
       .select({
         id: users.id,
         username: users.username
       })
       .from(users)
-      .where(eq(users.id, invitation.inviterId));
+      .where(eq(users.id, invitation.senderId));
 
     const [room] = await db
       .select({
@@ -609,15 +609,15 @@ export class DatabaseStorage implements IStorage {
       .from(chatRooms)
       .where(eq(chatRooms.id, invitation.roomId));
 
-    // Create a notification for the invitee
-    if (inviter && room) {
+    // Create a notification for the receiver
+    if (sender && room) {
       await this.createNotification({
-        userId: invitation.inviteeId,
+        userId: invitation.receiverId,
         type: 'room_invitation',
-        actorId: invitation.inviterId,
+        actorId: invitation.senderId,
         entityId: newInvitation.id,
         entityType: 'room_invitation',
-        message: `${inviter.username} invited you to join the "${room.name}" chat room.`,
+        message: `${sender.username} invited you to join the "${room.name}" chat room.`,
       });
     }
 
@@ -644,13 +644,13 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     // Get user and room information for the notification
-    const [invitee] = await db
+    const [receiver] = await db
       .select({
         id: users.id,
         username: users.username
       })
       .from(users)
-      .where(eq(users.id, invitation.inviteeId));
+      .where(eq(users.id, invitation.receiverId));
 
     const [room] = await db
       .select({
@@ -660,15 +660,15 @@ export class DatabaseStorage implements IStorage {
       .from(chatRooms)
       .where(eq(chatRooms.id, invitation.roomId));
 
-    // Create a notification for the inviter about the response
-    if (invitee && room) {
+    // Create a notification for the sender about the response
+    if (receiver && room) {
       await this.createNotification({
-        userId: invitation.inviterId,
+        userId: invitation.senderId,
         type: 'room_invitation_response',
-        actorId: invitation.inviteeId,
+        actorId: invitation.receiverId,
         entityId: invitationId,
         entityType: 'room_invitation',
-        message: `${invitee.username} ${status === 'accepted' ? 'accepted' : 'declined'} your invitation to join "${room.name}" chat room.`,
+        message: `${receiver.username} ${status === 'accepted' ? 'accepted' : 'declined'} your invitation to join "${room.name}" chat room.`,
       });
     }
 

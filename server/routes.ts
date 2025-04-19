@@ -1051,11 +1051,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const invitations = await storage.getReceivedRoomInvitations(userId);
       
-      // Enhance invitations with room and inviter info
+      // Enhance invitations with room and sender info
       const enhancedInvitations = await Promise.all(
         invitations.map(async (invitation) => {
           const room = await storage.getChatRoom(invitation.roomId);
-          const inviter = await storage.getUser(invitation.inviterId);
+          const sender = await storage.getUser(invitation.senderId);
           
           return {
             ...invitation,
@@ -1064,10 +1064,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               name: room.name,
               description: room.description
             } : null,
-            inviter: inviter ? {
-              id: inviter.id,
-              username: inviter.username,
-              profilePicture: inviter.profilePicture
+            sender: sender ? {
+              id: sender.id,
+              username: sender.username,
+              profilePicture: sender.profilePicture
             } : null
           };
         })
@@ -1085,11 +1085,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const invitations = await storage.getSentRoomInvitations(userId);
       
-      // Enhance invitations with room and invitee info
+      // Enhance invitations with room and receiver info
       const enhancedInvitations = await Promise.all(
         invitations.map(async (invitation) => {
           const room = await storage.getChatRoom(invitation.roomId);
-          const invitee = await storage.getUser(invitation.inviteeId);
+          const receiver = await storage.getUser(invitation.receiverId);
           
           return {
             ...invitation,
@@ -1098,10 +1098,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               name: room.name,
               description: room.description
             } : null,
-            invitee: invitee ? {
-              id: invitee.id,
-              username: invitee.username,
-              profilePicture: invitee.profilePicture
+            receiver: receiver ? {
+              id: receiver.id,
+              username: receiver.username,
+              profilePicture: receiver.profilePicture
             } : null
           };
         })
@@ -1203,7 +1203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Status must be 'accepted' or 'declined'" });
       }
       
-      // Get the invitation to check if this user is the invitee
+      // Get the invitation to check if this user is the receiver
       const invitations = await storage.getReceivedRoomInvitations(userId);
       const invitation = invitations.find(inv => inv.id === invitationId);
       
