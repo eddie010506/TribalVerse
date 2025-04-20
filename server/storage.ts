@@ -1,10 +1,13 @@
-import { users, chatRooms, messages, follows, friendRequests, notifications, roomInvitations, posts, comments, postLikes, userRecommendations, placeRecommendations } from "@shared/schema";
+import { users, chatRooms, messages, follows, friendRequests, notifications, roomInvitations, 
+  posts, comments, postLikes, userRecommendations, placeRecommendations,
+  roomMemberships, roomRecommendations } from "@shared/schema";
 import type { 
   User, InsertUser, ChatRoom, InsertChatRoom, Message, InsertMessage, MessageWithUser,
   Follow, InsertFollow, FriendRequest, InsertFriendRequest, Notification, InsertNotification,
   RoomInvitation, InsertRoomInvitation, Post, InsertPost, PostWithUser,
   Comment, InsertComment, CommentWithUser, PostLike, InsertPostLike,
-  UserRecommendation, InsertUserRecommendation, PlaceRecommendation, InsertPlaceRecommendation
+  UserRecommendation, InsertUserRecommendation, PlaceRecommendation, InsertPlaceRecommendation,
+  RoomMembership, InsertRoomMembership, RoomRecommendation, InsertRoomRecommendation
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
@@ -341,7 +344,11 @@ export class DatabaseStorage implements IStorage {
         creatorId: row.creator_id,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-        isSelfChat: row.is_self_chat
+        isSelfChat: row.is_self_chat,
+        isPublic: row.is_public,
+        category: row.category,
+        tags: row.tags,
+        totalMembers: row.total_members
       }));
     } catch (error) {
       console.error("Error getting rooms user has access to:", error);
@@ -383,6 +390,16 @@ export class DatabaseStorage implements IStorage {
         .delete(roomInvitations)
         .where(eq(roomInvitations.roomId, id));
       
+      // Delete all room memberships
+      await db
+        .delete(roomMemberships)
+        .where(eq(roomMemberships.roomId, id));
+      
+      // Delete all room recommendations
+      await db
+        .delete(roomRecommendations)
+        .where(eq(roomRecommendations.roomId, id));
+      
       // Delete the room
       await db
         .delete(chatRooms)
@@ -392,6 +409,152 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error deleting chat room:", error);
       return false;
+    }
+  }
+  
+  // Room membership methods
+  async getRoomMembers(roomId: number): Promise<Partial<User>[]> {
+    try {
+      // For public rooms, get all members
+      const result = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          profilePicture: users.profilePicture,
+          email: users.email,
+          emailVerified: users.emailVerified,
+        })
+        .from(roomMemberships)
+        .innerJoin(users, eq(roomMemberships.userId, users.id))
+        .where(eq(roomMemberships.roomId, roomId));
+      
+      return result;
+    } catch (error) {
+      console.error("Error getting room members:", error);
+      return [];
+    }
+  }
+  
+  async joinPublicRoom(userId: number, roomId: number): Promise<RoomMembership | undefined> {
+    try {
+      // Verify that the room exists and is public
+      const room = await this.getChatRoom(roomId);
+      if (!room || !room.isPublic) {
+        return undefined;
+      }
+      
+      // Check if user is already a member
+      const isMember = await this.isRoomMember(userId, roomId);
+      if (isMember) {
+        return undefined;
+      }
+      
+      // Add user to room members
+      const [membership] = await db
+        .insert(roomMemberships)
+        .values({
+          roomId,
+          userId,
+          isAdmin: false,
+        })
+        .returning();
+      
+      // Update room total members
+      await db
+        .update(chatRooms)
+        .set({ 
+          totalMembers: room.totalMembers ? room.totalMembers + 1 : 2,
+          updatedAt: new Date(),
+        })
+        .where(eq(chatRooms.id, roomId));
+      
+      return membership;
+    } catch (error) {
+      console.error("Error joining public room:", error);
+      return undefined;
+    }
+  }
+  
+  async leaveRoom(userId: number, roomId: number): Promise<boolean> {
+    try {
+      // Verify that the room exists
+      const room = await this.getChatRoom(roomId);
+      if (!room) {
+        return false;
+      }
+      
+      // Don't allow room creator to leave
+      if (room.creatorId === userId) {
+        return false;
+      }
+      
+      // Remove user from room members
+      await db
+        .delete(roomMemberships)
+        .where(
+          and(
+            eq(roomMemberships.roomId, roomId),
+            eq(roomMemberships.userId, userId)
+          )
+        );
+      
+      // Update room total members
+      if (room.totalMembers && room.totalMembers > 1) {
+        await db
+          .update(chatRooms)
+          .set({ 
+            totalMembers: room.totalMembers - 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(chatRooms.id, roomId));
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error leaving room:", error);
+      return false;
+    }
+  }
+  
+  async isRoomMember(userId: number, roomId: number): Promise<boolean> {
+    try {
+      const room = await this.getChatRoom(roomId);
+      if (!room) {
+        return false;
+      }
+      
+      // Room creator is always a member
+      if (room.creatorId === userId) {
+        return true;
+      }
+      
+      // Check if user is in room memberships
+      const result = await db
+        .select()
+        .from(roomMemberships)
+        .where(
+          and(
+            eq(roomMemberships.roomId, roomId),
+            eq(roomMemberships.userId, userId)
+          )
+        );
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error checking room membership:", error);
+      return false;
+    }
+  }
+  
+  async getRoomMembershipsForUser(userId: number): Promise<RoomMembership[]> {
+    try {
+      return await db
+        .select()
+        .from(roomMemberships)
+        .where(eq(roomMemberships.userId, userId));
+    } catch (error) {
+      console.error("Error getting user room memberships:", error);
+      return [];
     }
   }
 
@@ -1185,6 +1348,131 @@ export class DatabaseStorage implements IStorage {
   async clearExpiredPlaceRecommendations(): Promise<void> {
     await db.delete(placeRecommendations)
       .where(lt(placeRecommendations.expiresAt, new Date()));
+  }
+  
+  // Room recommendation methods
+  async getRoomRecommendations(userId: number): Promise<RoomRecommendation[]> {
+    try {
+      // First check for cached recommendations
+      const cachedRecommendations = await db
+        .select()
+        .from(roomRecommendations)
+        .where(
+          and(
+            eq(roomRecommendations.userId, userId),
+            gt(roomRecommendations.expiresAt, new Date())
+          )
+        );
+      
+      if (cachedRecommendations.length > 0) {
+        return cachedRecommendations;
+      }
+      
+      // If no cached recommendations, generate new ones
+      return this.generateRoomRecommendations(userId);
+    } catch (error) {
+      console.error("Error getting room recommendations:", error);
+      return [];
+    }
+  }
+  
+  async generateRoomRecommendations(userId: number): Promise<RoomRecommendation[]> {
+    try {
+      // Get user info
+      const user = await this.getUser(userId);
+      if (!user) {
+        return [];
+      }
+      
+      // Get all public rooms
+      const publicRooms = await this.getPublicChatRooms();
+      if (publicRooms.length === 0) {
+        return [];
+      }
+      
+      // Get rooms user is already a member of
+      const userMemberships = await this.getRoomMembershipsForUser(userId);
+      const userRoomIds = userMemberships.map(membership => membership.roomId);
+      
+      // Filter out rooms user is already a member of
+      const availableRooms = publicRooms.filter(room => !userRoomIds.includes(room.id));
+      if (availableRooms.length === 0) {
+        return [];
+      }
+      
+      // For each available room, calculate a simple match score
+      // In a real implementation, this would be more sophisticated with AI
+      const roomScores = await Promise.all(
+        availableRooms.map(async (room) => {
+          // Default score
+          let score = 0;
+          let matchReason = "You might be interested in this room.";
+          
+          // Check if room has a category/tags that match user interests
+          if (user.hobbies && room.tags && user.hobbies.toLowerCase().includes(room.tags.toLowerCase())) {
+            score += 5;
+            matchReason = `This room matches your hobby: ${room.tags}`;
+          }
+          
+          if (user.interests && room.category && user.interests.toLowerCase().includes(room.category.toLowerCase())) {
+            score += 5;
+            matchReason = `This room matches your interest in ${room.category}`;
+          }
+          
+          // Check room popularity (member count)
+          if (room.totalMembers && room.totalMembers > 5) {
+            score += 3;
+            matchReason = "This is a popular room you might enjoy.";
+          }
+          
+          return {
+            room,
+            score,
+            matchReason
+          };
+        })
+      );
+      
+      // Sort by score (descending) and take top 5
+      const topRecommendations = roomScores
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+      
+      // Create and store recommendations
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 1); // Recommendations expire after 24 hours
+      
+      const storedRecommendations = await Promise.all(
+        topRecommendations.map(async (rec) => {
+          const [recommendation] = await db
+            .insert(roomRecommendations)
+            .values({
+              userId,
+              roomId: rec.room.id,
+              matchReason: rec.matchReason,
+              expiresAt,
+            })
+            .returning();
+          
+          return recommendation;
+        })
+      );
+      
+      return storedRecommendations;
+    } catch (error) {
+      console.error("Error generating room recommendations:", error);
+      return [];
+    }
+  }
+  
+  async clearExpiredRoomRecommendations(): Promise<void> {
+    try {
+      await db
+        .delete(roomRecommendations)
+        .where(lt(roomRecommendations.expiresAt, new Date()));
+    } catch (error) {
+      console.error("Error clearing expired room recommendations:", error);
+    }
   }
 }
 
