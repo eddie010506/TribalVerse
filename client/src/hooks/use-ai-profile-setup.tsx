@@ -10,6 +10,13 @@ type Message = {
   content: string;
 };
 
+// Utility function to reset profile setup state
+export function resetProfileSetupState() {
+  console.log("Resetting profile setup state in localStorage");
+  localStorage.removeItem('profileSetupCompleted');
+  localStorage.removeItem('profileSetupSkippedAt');
+}
+
 export function useAIProfileSetup() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
