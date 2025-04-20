@@ -33,27 +33,39 @@ function ProfileCheckRouter() {
       user && 
       !isLoading && 
       location !== '/auth' && 
-      location !== '/profile' && 
-      !isProfileComplete()
+      location !== '/profile'
     ) {
-      // Check if we've shown the dialog recently and user chose to skip
-      const lastSkippedTime = localStorage.getItem('profileSetupSkippedAt');
+      // For demo accounts or if profile is incomplete, always show setup
+      const isDemoAccount = user.username === 'demovideo' || user.username === 'demovideos';
       
-      if (lastSkippedTime) {
-        // If it was skipped less than 24 hours ago, don't show again
-        const skippedTimestamp = parseInt(lastSkippedTime, 10);
-        const currentTime = Date.now();
-        const hoursSinceSkipped = (currentTime - skippedTimestamp) / (1000 * 60 * 60);
-        
-        if (hoursSinceSkipped < 24) {
-          // It's been less than 24 hours since the user skipped
-          return;
-        }
+      if (isDemoAccount) {
+        // For demo accounts, always show the profile setup
+        // Also clear any "skip" timestamps to ensure dialog shows every time
+        localStorage.removeItem('profileSetupSkippedAt');
+        setShowProfileSetup(true);
+        return;
       }
       
-      // Only show the profile setup dialog if user is authenticated, profile is incomplete,
-      // and hasn't been skipped in the last 24 hours
-      setShowProfileSetup(true);
+      // For regular users, check if profile is incomplete
+      if (!isProfileComplete()) {
+        // Check if we've shown the dialog recently and user chose to skip
+        const lastSkippedTime = localStorage.getItem('profileSetupSkippedAt');
+        
+        if (lastSkippedTime) {
+          // If it was skipped less than 24 hours ago, don't show again
+          const skippedTimestamp = parseInt(lastSkippedTime, 10);
+          const currentTime = Date.now();
+          const hoursSinceSkipped = (currentTime - skippedTimestamp) / (1000 * 60 * 60);
+          
+          if (hoursSinceSkipped < 24) {
+            // It's been less than 24 hours since the user skipped
+            return;
+          }
+        }
+        
+        // Show the profile setup dialog
+        setShowProfileSetup(true);
+      }
     }
   }, [user, isLoading, location, isProfileComplete]);
 

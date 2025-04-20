@@ -70,7 +70,7 @@ export function ProfileSetupDialog({ open, onOpenChange }: ProfileSetupDialogPro
               AI Profile Setup Assistant
             </CardTitle>
             <CardDescription>
-              Chat with the AI to set up your profile. It will help you identify your hobbies, interests, and current activities.
+              Chat with the AI to set up your profile. It will help you identify your hobbies, interests, current activities, and favorite foods.
             </CardDescription>
           </CardHeader>
           
