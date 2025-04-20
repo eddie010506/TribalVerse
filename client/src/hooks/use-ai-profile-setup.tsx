@@ -151,6 +151,9 @@ export function useAIProfileSetup() {
         return oldData;
       });
       
+      // Mark profile setup as completed in localStorage
+      localStorage.setItem('profileSetupCompleted', 'true');
+      
       // Show success message
       toast({
         title: 'Profile Updated',
@@ -179,8 +182,13 @@ export function useAIProfileSetup() {
   const isProfileComplete = useCallback(() => {
     if (!user) return false;
     
-    // For the demovideo account, always return false to ensure profile setup shows
+    // For the demovideo account, check if this specific session has already completed setup
     if (user.username === 'demovideo' || user.username === 'demovideos') {
+      // Check if we've already completed the profile setup in this session
+      const completedSetup = localStorage.getItem('profileSetupCompleted');
+      if (completedSetup === 'true') {
+        return true;
+      }
       return false;
     }
     
