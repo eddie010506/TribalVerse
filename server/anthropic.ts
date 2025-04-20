@@ -235,7 +235,24 @@ For each category, provide 1-3 sentences that capture the essence of what I've s
       model: 'claude-3-7-sonnet-20250219',
       max_tokens: 1024,
       messages,
-      system: "You are a profile analysis assistant. Extract the user's hobbies, interests, current activities, and favorite foods from the conversation. Format your response with EXACTLY these numbered sections (1. Hobbies, 2. Interests, 3. Current Activities, 4. Favorite Food). ALL FOUR CATEGORIES ARE REQUIRED - do not skip any. The favorite food section (#4) is EXTREMELY IMPORTANT - if the user mentioned ANY foods or cuisines, include them in section 4. If the user has not mentioned favorite foods yet, respond with 'Information incomplete: Please ask the user about their favorite foods before proceeding.' Do not make up information."
+      system: `You are a profile analysis assistant. Your PRIMARY GOAL is to extract the user's hobbies, interests, current activities, and ESPECIALLY their favorite foods from the conversation.
+
+FORMAT YOUR RESPONSE WITH EXACTLY THESE FOUR NUMBERED SECTIONS:
+1. Hobbies: (extracted information)
+2. Interests: (extracted information)
+3. Current Activities: (extracted information)
+4. Favorite Food: (extracted information)
+
+ALL FOUR CATEGORIES ARE ABSOLUTELY REQUIRED - DO NOT SKIP ANY SECTION.
+
+THE FAVORITE FOOD SECTION (#4) IS THE MOST CRITICAL PART OF YOUR RESPONSE:
+- Carefully examine the entire conversation for ANY mention of foods, cuisines, restaurants, dishes, or eating preferences
+- Include ALL food-related information in section 4
+- If the user has mentioned multiple foods, list them all
+- If you are uncertain about the user's food preferences, respond with: "Information incomplete: The user has not clearly stated their favorite foods. Please explicitly ask what their favorite foods or cuisines are before proceeding."
+- DO NOT invent or assume any food preferences
+
+Be precise and extract only information that was explicitly shared in the conversation. Do not make up or infer information that wasn't directly stated by the user.`
     });
 
     if (!response.content || response.content.length === 0) {
@@ -307,17 +324,44 @@ For each category, provide 1-3 sentences that capture the essence of what I've s
       
       // Favorite Food section extraction - higher priority than other sections
       const foodPatterns = [
+        // Standard numbered/titled patterns
         /(Favorite Food|4\.?)\s*:?\s*([\s\S]*?)(?=$)/i,
         /(?:^|\n)(?:Favorite Food|4\.?)[\s:]*([^\n]+)/i,
         /(Favorite Food|Food preferences|Cuisine preferences):\s*([\s\S]*?)(?=\n\n|\n[A-Z0-9]|$)/i,
         /4\.\s*([\s\S]*?)(?=\n\n|\n[A-Z0-9]|$)/i,
+        // Look for lines with food keywords
+        /(?:^|\n)[^:]*(?:favorite food|cuisine|food preference|like to eat)[\s:]*([^\n]+)/i,
+        // Match "I enjoy eating X" patterns
+        /(?:I|you) (?:enjoy|love|like|prefer) (?:eating|cooking|having) (.*?)(?:\.|$)/i,
+        // Match direct food mentions after food question
+        /(?:food|cuisine|dish)[^:]*: (.*?)(?:\.|$)/i
       ];
       
+      // First do an overall food-related check of the entire conversation
+      let hasDiscussedFood = false;
+      for (const message of conversationHistory) {
+        if ((message.role === 'assistant' && 
+            (message.content.toLowerCase().includes('favorite food') || 
+             message.content.toLowerCase().includes('favorite cuisine'))) ||
+            (message.role === 'user' && 
+             (message.content.toLowerCase().includes('food') || 
+              message.content.toLowerCase().includes('eat') ||
+              message.content.toLowerCase().includes('cuisine') || 
+              message.content.toLowerCase().includes('dish')))) {
+          hasDiscussedFood = true;
+          console.log('Food discussion detected in conversation');
+          break;
+        }
+      }
+      
+      // Try to extract food from AI's response first
       for (const pattern of foodPatterns) {
         const match = pattern.exec(aiResponse);
         if (match && match.length > 1) {
           const extractedText = match[match.length-1].trim();
-          if (extractedText && extractedText.length > 2) {
+          if (extractedText && extractedText.length > 2 && 
+              extractedText.toLowerCase() !== 'not specified' &&
+              !extractedText.toLowerCase().includes('information incomplete')) {
             favoriteFood = extractedText;
             console.log('Food extraction matched with pattern:', pattern);
             console.log('Extracted food text:', extractedText);
@@ -326,18 +370,68 @@ For each category, provide 1-3 sentences that capture the essence of what I've s
         }
       }
       
-      // If we couldn't find favorite food but we find the word "food" in the response
-      if (favoriteFood === "Not specified") {
-        // Look for food-related discussions in the original conversation
-        for (const message of conversationHistory) {
-          if (message.role === 'user' && 
-              (message.content.toLowerCase().includes('food') || 
-               message.content.toLowerCase().includes('eat') ||
-               message.content.toLowerCase().includes('cuisine') || 
-               message.content.toLowerCase().includes('dish'))) {
-            favoriteFood = message.content;
-            console.log('Food extraction found in user message:', favoriteFood);
-            break;
+      // If we couldn't find favorite food in the AI response, look in user messages
+      if (favoriteFood === "Not specified" && hasDiscussedFood) {
+        // Look for user's response to the food question
+        let foodQuestionFound = false;
+        
+        for (let i = 0; i < conversationHistory.length; i++) {
+          const message = conversationHistory[i];
+          
+          // First find the assistant's question about food
+          if (message.role === 'assistant' && 
+              (message.content.toLowerCase().includes('favorite food') || 
+               message.content.toLowerCase().includes('cuisine') ||
+               message.content.toLowerCase().includes('what do you like to eat'))) {
+            
+            foodQuestionFound = true;
+            
+            // Then look for the user's response right after
+            if (i + 1 < conversationHistory.length && conversationHistory[i + 1].role === 'user') {
+              const userResponse = conversationHistory[i + 1].content;
+              console.log('Found user response to food question:', userResponse);
+              favoriteFood = userResponse;
+              break;
+            }
+          }
+        }
+        
+        // If we still didn't find anything, look for any food mentions in user messages
+        if (favoriteFood === "Not specified" || favoriteFood.length > 200) {
+          for (const message of conversationHistory) {
+            if (message.role === 'user' && 
+                (message.content.toLowerCase().includes('food') || 
+                 message.content.toLowerCase().includes('eat') ||
+                 message.content.toLowerCase().includes('cuisine') || 
+                 message.content.toLowerCase().includes('dish'))) {
+              console.log('Food mention found in user message:', message.content);
+              
+              // Extract a shorter snippet if the message is too long
+              if (message.content.length > 100) {
+                const foodIndex = message.content.toLowerCase().indexOf('food');
+                const cuisineIndex = message.content.toLowerCase().indexOf('cuisine');
+                const eatIndex = message.content.toLowerCase().indexOf('eat');
+                const dishIndex = message.content.toLowerCase().indexOf('dish');
+                
+                // Find the first occurrence of a food-related word
+                const indices = [foodIndex, cuisineIndex, eatIndex, dishIndex]
+                  .filter(idx => idx !== -1);
+                  
+                if (indices.length > 0) {
+                  const firstIndex = Math.min(...indices);
+                  // Extract a snippet around the food mention
+                  favoriteFood = message.content.substring(
+                    Math.max(0, firstIndex - 10), 
+                    Math.min(message.content.length, firstIndex + 50)
+                  );
+                } else {
+                  favoriteFood = message.content;
+                }
+              } else {
+                favoriteFood = message.content;
+              }
+              break;
+            }
           }
         }
         
