@@ -24,7 +24,7 @@ export function Header() {
 
   // Navigation items for the hamburger menu
   const navigationItems = user ? [
-    { href: "/", icon: <FileText className="h-5 w-5 mr-3" />, label: "Posts", active: location === "/" },
+    { href: "/", icon: <FileText className="h-5 w-5 mr-3" />, label: "Tribal Board", active: location === "/" },
     { href: "/chat", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Tribal Room", active: location === "/chat" },
     { href: "/public-rooms", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Tribal Grounds", active: location === "/public-rooms" },
     { href: "/profile", icon: <User className="h-5 w-5 mr-3" />, label: "Profile", active: location === "/profile" },

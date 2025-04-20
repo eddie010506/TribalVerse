@@ -105,9 +105,9 @@ export default function HomePage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-neutral-800">Tribal Room</h1>
+            <h1 className="text-3xl font-bold text-neutral-800">Tribal Board</h1>
             <p className="text-neutral-600 mt-1">
-              Join an existing room or create your own
+              Share updates and connect with your community
             </p>
           </div>
           
