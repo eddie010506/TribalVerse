@@ -35,13 +35,24 @@ function ProfileCheckRouter() {
       location !== '/auth' && 
       location !== '/profile'
     ) {
-      // For demo accounts or if profile is incomplete, always show setup
-      const isDemoAccount = user.username === 'demovideo' || user.username === 'demovideos';
+      // Check if profile setup has been completed already in this session
+      const completedSetup = localStorage.getItem('profileSetupCompleted');
+      if (completedSetup === 'true') {
+        return; // Don't show profile setup if it's already been completed
+      }
+      
+      // For demo accounts, check more carefully
+      const isDemoAccount = user.username === 'demovideo' || user.username === 'demovideos' || 
+                          user.username === 'demovideo1' || user.username === 'demovideo2';
       
       if (isDemoAccount) {
-        // For demo accounts, always show the profile setup
-        // Also clear any "skip" timestamps to ensure dialog shows every time
-        localStorage.removeItem('profileSetupSkippedAt');
+        // For demo accounts, check if they've already completed setup in this session
+        const demoCompleted = localStorage.getItem('profileSetupCompleted');
+        if (demoCompleted === 'true') {
+          return; // Don't show if completed
+        }
+        
+        // Otherwise show the profile setup
         setShowProfileSetup(true);
         return;
       }
@@ -72,8 +83,9 @@ function ProfileCheckRouter() {
   // Handle dialog close with a reason (completed or skipped)
   const handleDialogChange = (open: boolean) => {
     if (!open) {
-      // If dialog is closing and profile is still not complete, record as skipped
-      if (!isProfileComplete()) {
+      // If completed flag is present, don't record as skipped
+      const completedSetup = localStorage.getItem('profileSetupCompleted');
+      if (completedSetup !== 'true' && !isProfileComplete()) {
         localStorage.setItem('profileSetupSkippedAt', Date.now().toString());
       }
       setShowProfileSetup(false);

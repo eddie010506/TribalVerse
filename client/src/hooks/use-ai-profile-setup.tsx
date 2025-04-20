@@ -182,8 +182,9 @@ export function useAIProfileSetup() {
   const isProfileComplete = useCallback(() => {
     if (!user) return false;
     
-    // For the demovideo account, check if this specific session has already completed setup
-    if (user.username === 'demovideo' || user.username === 'demovideos') {
+    // For any demo video account, check if this specific session has already completed setup
+    if (user.username === 'demovideo' || user.username === 'demovideos' || 
+        user.username === 'demovideo1' || user.username === 'demovideo2') {
       // Check if we've already completed the profile setup in this session
       const completedSetup = localStorage.getItem('profileSetupCompleted');
       if (completedSetup === 'true') {
