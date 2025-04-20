@@ -96,25 +96,45 @@ export function useAIProfileSetup() {
     setIsSubmittingProfile(true);
     try {
       // First, analyze the conversation
+      console.log('Sending conversation for analysis:', messages);
       const analysisResponse = await apiRequest('POST', '/api/ai/analyze-profile', {
         conversationHistory: messages,
       });
       
-      const profileData = await analysisResponse.json();
+      let profileData;
+      if (!analysisResponse.ok) {
+        const errorData = await analysisResponse.json();
+        throw new Error(`Analysis failed: ${errorData.message || 'Unknown error'}`);
+      } else {
+        profileData = await analysisResponse.json();
+      }
+      console.log('Profile data received:', profileData);
       
-      if (!profileData.hobbies || !profileData.interests || !profileData.currentActivities) {
-        throw new Error('Failed to extract profile information');
+      if (!profileData || !profileData.hobbies || !profileData.interests || !profileData.currentActivities) {
+        throw new Error('Failed to extract complete profile information');
       }
       
-      // Then update the user profile with all fields including favoriteFood
-      const updateResponse = await apiRequest('PATCH', '/api/profile', {
+      // Create profile update data
+      const profileUpdateData = {
         hobbies: profileData.hobbies,
         interests: profileData.interests,
         currentActivities: profileData.currentActivities,
         favoriteFood: profileData.favoriteFood || "Not specified",
-      });
+      };
       
-      const updatedProfile = await updateResponse.json();
+      console.log('Updating profile with data:', profileUpdateData);
+      
+      // Then update the user profile
+      const updateResponse = await apiRequest('PATCH', '/api/profile', profileUpdateData);
+      
+      let updatedProfile;
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json();
+        throw new Error(`Profile update failed: ${errorData.message || 'Unknown error'}`);
+      } else {
+        updatedProfile = await updateResponse.json();
+      }
+      console.log('Profile updated successfully:', updatedProfile);
       
       // Update cache
       queryClient.setQueryData(['/api/profile'], updatedProfile);
@@ -139,13 +159,15 @@ export function useAIProfileSetup() {
       
       setSetupComplete(true);
       
-      // Redirect to profile page
-      setLocation('/profile');
-    } catch (error) {
+      // Redirect to profile page after a short delay to ensure UI updates
+      setTimeout(() => {
+        setLocation('/profile');
+      }, 500);
+    } catch (error: any) {
       console.error('Error updating profile:', error);
       toast({
         title: 'Update Failed',
-        description: 'Failed to update your profile. Please try again or update your profile manually.',
+        description: `Failed to update your profile: ${error.message || 'Unknown error'}. Please try again or update your profile manually.`,
         variant: 'destructive',
       });
     } finally {
