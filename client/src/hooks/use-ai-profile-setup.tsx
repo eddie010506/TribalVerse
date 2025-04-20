@@ -106,22 +106,35 @@ export function useAIProfileSetup() {
         throw new Error('Failed to extract profile information');
       }
       
-      // Then update the user profile
+      // Then update the user profile with all fields including favoriteFood
       const updateResponse = await apiRequest('PATCH', '/api/profile', {
         hobbies: profileData.hobbies,
         interests: profileData.interests,
         currentActivities: profileData.currentActivities,
+        favoriteFood: profileData.favoriteFood || "Not specified",
       });
       
       const updatedProfile = await updateResponse.json();
       
       // Update cache
       queryClient.setQueryData(['/api/profile'], updatedProfile);
+      queryClient.setQueryData(['/api/user'], (oldData: any) => {
+        if (oldData) {
+          return {
+            ...oldData,
+            hobbies: profileData.hobbies,
+            interests: profileData.interests,
+            currentActivities: profileData.currentActivities,
+            favoriteFood: profileData.favoriteFood || "Not specified",
+          };
+        }
+        return oldData;
+      });
       
       // Show success message
       toast({
         title: 'Profile Updated',
-        description: 'Your profile has been updated with the AI-generated suggestions.',
+        description: 'Your profile has been updated with the AI-generated suggestions including your favorite food.',
       });
       
       setSetupComplete(true);
@@ -143,6 +156,11 @@ export function useAIProfileSetup() {
   // Detect if user has already completed profile
   const isProfileComplete = useCallback(() => {
     if (!user) return false;
+    
+    // For the demovideo account, always return false to ensure profile setup shows
+    if (user.username === 'demovideo' || user.username === 'demovideos') {
+      return false;
+    }
     
     const hasHobbies = !!user.hobbies;
     const hasInterests = !!user.interests;
