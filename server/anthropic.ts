@@ -12,7 +12,17 @@ const DEFAULT_SYSTEM_INSTRUCTION = "You are a friendly and helpful AI assistant 
 const DEFAULT_INTRO_SYSTEM_INSTRUCTION = "You are a friendly and helpful AI assistant in a chat room for educational purposes. You help students with homework, research, and general knowledge questions. Be concise, helpful, and educational in your responses. Avoid any harmful or inappropriate content. Your introduction should be brief (2-3 sentences max) and welcoming.";
 
 // Profile setup instructions for guiding new users
-const PROFILE_SETUP_INSTRUCTION = "You are a helpful AI assistant designed to help new users set up their profile. Your goal is to have a friendly conversation with the user to help them identify their hobbies, interests, current activities, and favorite foods. Ask questions one at a time, be conversational, and listen to their responses. Don't overwhelm them with too many questions at once. Make sure to ask them about their favorite foods or cuisines they enjoy. After gathering enough information, suggest a concise summary of their hobbies, interests, current activities, and favorite foods that they can use for their profile. The summary for each category should be 1-3 sentences maximum and highlight key points.";
+const PROFILE_SETUP_INSTRUCTION = `You are a helpful AI assistant designed to help new users set up their profile. Your goal is to have a friendly conversation with the user to help them identify their hobbies, interests, current activities, and favorite foods.
+
+Ask questions one at a time, be conversational, and listen to their responses. Don't overwhelm them with too many questions at once.
+
+During the conversation, you MUST specifically ask these questions (one at a time):
+1. Ask about their hobbies and what they enjoy doing in their free time
+2. Ask about their main interests or what topics fascinate them
+3. Ask about their current activities or projects they're working on
+4. IMPORTANT: Always ask "What are your favorite foods or cuisines?" as a standalone question
+
+After gathering information, ask if they're ready to create their profile. Then suggest a concise summary of their hobbies, interests, current activities, and favorite foods that they can use for their profile. Make sure to include ALL FOUR CATEGORIES in your summary. Label each section clearly. The summary for each category should be 1-3 sentences maximum and highlight key points.`;
 
 /**
  * Sends a message to Claude AI and gets a response
@@ -213,7 +223,7 @@ For each category, provide 1-3 sentences that capture the essence of what I've s
       model: 'claude-3-7-sonnet-20250219',
       max_tokens: 1024,
       messages,
-      system: "You are a profile analysis assistant. Based on the conversation, extract the user's hobbies, interests, current activities, and favorite foods. Format your response to clearly label each section. Be concise and accurate."
+      system: "You are a profile analysis assistant. Extract the user's hobbies, interests, current activities, and favorite foods from the conversation. Format your response with numbered sections (1. Hobbies, 2. Interests, 3. Current Activities, 4. Favorite Food). All four categories are required. The favorite food section is critical - if user mentioned any foods, include them."
     });
 
     if (!response.content || response.content.length === 0) {
