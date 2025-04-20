@@ -46,6 +46,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   sentRoomInvitations: many(roomInvitations, { relationName: "inviter" }),
   receivedRoomInvitations: many(roomInvitations, { relationName: "invitee" }),
   posts: many(posts),
+  roomMemberships: many(roomMemberships),
+  roomRecommendations: many(roomRecommendations),
 }));
 
 // Chat room schema
@@ -55,7 +57,12 @@ export const chatRooms = pgTable("chat_rooms", {
   description: text("description"),
   creatorId: integer("creator_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
   isSelfChat: boolean("is_self_chat").default(false),
+  isPublic: boolean("is_public").default(false),
+  category: text("category"),
+  tags: text("tags"),
+  totalMembers: integer("total_members").default(1),
 });
 
 export const insertChatRoomSchema = createInsertSchema(chatRooms).pick({
@@ -63,6 +70,9 @@ export const insertChatRoomSchema = createInsertSchema(chatRooms).pick({
   description: true,
   creatorId: true,
   isSelfChat: true,
+  isPublic: true,
+  category: true,
+  tags: true,
 });
 
 export type InsertChatRoom = z.infer<typeof insertChatRoomSchema>;
@@ -76,6 +86,8 @@ export const chatRoomsRelations = relations(chatRooms, ({ one, many }) => ({
   }),
   messages: many(messages),
   invitations: many(roomInvitations),
+  memberships: many(roomMemberships),
+  recommendations: many(roomRecommendations),
 }));
 
 // Message schema
@@ -431,6 +443,69 @@ export type PlaceRecommendation = typeof placeRecommendations.$inferSelect;
 export const placeRecommendationsRelations = relations(placeRecommendations, ({ one }) => ({
   room: one(chatRooms, {
     fields: [placeRecommendations.roomId],
+    references: [chatRooms.id],
+  }),
+}));
+
+// Room memberships schema (for public rooms)
+export const roomMemberships = pgTable("room_memberships", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull().references(() => chatRooms.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  isAdmin: boolean("is_admin").default(false),
+}, (t) => ({
+  uniqueRoomUser: unique().on(t.roomId, t.userId),
+}));
+
+export const insertRoomMembershipSchema = createInsertSchema(roomMemberships).pick({
+  roomId: true,
+  userId: true,
+  isAdmin: true,
+});
+
+export type InsertRoomMembership = z.infer<typeof insertRoomMembershipSchema>;
+export type RoomMembership = typeof roomMemberships.$inferSelect;
+
+// Room membership relations
+export const roomMembershipsRelations = relations(roomMemberships, ({ one }) => ({
+  room: one(chatRooms, {
+    fields: [roomMemberships.roomId],
+    references: [chatRooms.id],
+  }),
+  user: one(users, {
+    fields: [roomMemberships.userId],
+    references: [users.id],
+  }),
+}));
+
+// Room recommendations table to cache AI recommendations
+export const roomRecommendations = pgTable("room_recommendations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  roomId: integer("room_id").notNull().references(() => chatRooms.id, { onDelete: "cascade" }),
+  matchReason: text("match_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
+export const insertRoomRecommendationSchema = createInsertSchema(roomRecommendations).pick({
+  userId: true,
+  roomId: true,
+  matchReason: true,
+  expiresAt: true,
+});
+
+export type InsertRoomRecommendation = z.infer<typeof insertRoomRecommendationSchema>;
+export type RoomRecommendation = typeof roomRecommendations.$inferSelect;
+
+export const roomRecommendationsRelations = relations(roomRecommendations, ({ one }) => ({
+  user: one(users, {
+    fields: [roomRecommendations.userId],
+    references: [users.id],
+  }),
+  room: one(chatRooms, {
+    fields: [roomRecommendations.roomId],
     references: [chatRooms.id],
   }),
 }));

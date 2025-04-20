@@ -28,11 +28,25 @@ export interface IStorage {
   
   // Chat room methods
   getChatRooms(): Promise<ChatRoom[]>;
+  getPrivateChatRooms(): Promise<ChatRoom[]>;
+  getPublicChatRooms(): Promise<ChatRoom[]>;
   getChatRoomsByCreatorId(creatorId: number): Promise<ChatRoom[]>;
   getRoomsUserHasAccessTo(userId: number): Promise<ChatRoom[]>;
   getChatRoom(id: number): Promise<ChatRoom | undefined>;
   createChatRoom(room: InsertChatRoom): Promise<ChatRoom>;
   deleteChatRoom(id: number, userId: number): Promise<boolean>;
+  
+  // Room membership methods
+  getRoomMembers(roomId: number): Promise<Partial<User>[]>;
+  joinPublicRoom(userId: number, roomId: number): Promise<RoomMembership | undefined>;
+  leaveRoom(userId: number, roomId: number): Promise<boolean>;
+  isRoomMember(userId: number, roomId: number): Promise<boolean>;
+  getRoomMembershipsForUser(userId: number): Promise<RoomMembership[]>;
+  
+  // Room recommendation methods
+  generateRoomRecommendations(userId: number): Promise<RoomRecommendation[]>;
+  getRoomRecommendations(userId: number): Promise<RoomRecommendation[]>;
+  clearExpiredRoomRecommendations(): Promise<void>;
   
   // Message methods
   getMessagesByRoomId(roomId: number): Promise<MessageWithUser[]>;
@@ -270,6 +284,20 @@ export class DatabaseStorage implements IStorage {
   // Chat room methods
   async getChatRooms(): Promise<ChatRoom[]> {
     return await db.select().from(chatRooms);
+  }
+  
+  async getPrivateChatRooms(): Promise<ChatRoom[]> {
+    return await db
+      .select()
+      .from(chatRooms)
+      .where(eq(chatRooms.isPublic, false));
+  }
+  
+  async getPublicChatRooms(): Promise<ChatRoom[]> {
+    return await db
+      .select()
+      .from(chatRooms)
+      .where(eq(chatRooms.isPublic, true));
   }
   
   async getChatRoomsByCreatorId(creatorId: number): Promise<ChatRoom[]> {
