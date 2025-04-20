@@ -11,6 +11,7 @@ import ProfilePage from "@/pages/profile-page";
 import UserProfilePage from "@/pages/user-profile-page";
 import PostsPage from "@/pages/posts-page";
 import CreatePostPage from "@/pages/create-post-page";
+import PublicRoomsPage from "@/pages/public-rooms-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RoomInvitationsProvider } from "@/hooks/use-room-invitations";
@@ -78,6 +79,7 @@ function ProfileCheckRouter() {
           <Redirect to="/" />
         </Route>
         <ProtectedRoute path="/chat" component={HomePage} />
+        <ProtectedRoute path="/public-rooms" component={PublicRoomsPage} />
         <ProtectedRoute path="/rooms/:id" component={ChatRoom} />
         <ProtectedRoute path="/create-room" component={CreateRoom} />
         <ProtectedRoute path="/profile" component={ProfilePage} />

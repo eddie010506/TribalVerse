@@ -1061,7 +1061,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const expiresAt = new Date();
                   expiresAt.setHours(expiresAt.getHours() + 24);
                   
-                  await storage.createUserRecommendation({
+                  // For public rooms, we need to generate room recommendations
+                  // instead of user recommendations
+                  await storage.createRoomRecommendation({
                     userId: user.id,
                     roomId: room.id,
                     matchReason,
@@ -1198,14 +1200,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "You do not have permission to access this room" });
         }
         
-        // 3. User has an accepted invitation
-        const invitations = await storage.getReceivedRoomInvitations(userId);
-        const hasAcceptedInvitation = invitations.some(
-          inv => inv.roomId === roomId && inv.status === 'accepted'
-        );
-        
-        if (!hasAcceptedInvitation) {
-          return res.status(403).json({ message: "You do not have permission to access this room" });
+        // 3. For public rooms, check membership
+        if (room.isPublic) {
+          const isMember = await storage.isRoomMember(userId, roomId);
+          if (!isMember) {
+            return res.status(403).json({ 
+              message: "You need to join this public room first",
+              isPublic: true
+            });
+          }
+        } else {
+          // 4. For private rooms, check for an accepted invitation
+          const invitations = await storage.getReceivedRoomInvitations(userId);
+          const hasAcceptedInvitation = invitations.some(
+            inv => inv.roomId === roomId && inv.status === 'accepted'
+          );
+          
+          if (!hasAcceptedInvitation) {
+            return res.status(403).json({ message: "You do not have permission to access this room" });
+          }
         }
       }
       
