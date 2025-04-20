@@ -49,6 +49,7 @@ export interface IStorage {
   // Room recommendation methods
   generateRoomRecommendations(userId: number): Promise<RoomRecommendation[]>;
   getRoomRecommendations(userId: number): Promise<RoomRecommendation[]>;
+  createRoomRecommendation(recommendation: InsertRoomRecommendation): Promise<RoomRecommendation>;
   clearExpiredRoomRecommendations(): Promise<void>;
   
   // Message methods
@@ -1472,6 +1473,21 @@ export class DatabaseStorage implements IStorage {
         .where(lt(roomRecommendations.expiresAt, new Date()));
     } catch (error) {
       console.error("Error clearing expired room recommendations:", error);
+    }
+  }
+  
+  // Create a single room recommendation
+  async createRoomRecommendation(recommendation: InsertRoomRecommendation): Promise<RoomRecommendation> {
+    try {
+      const [newRecommendation] = await db
+        .insert(roomRecommendations)
+        .values(recommendation)
+        .returning();
+      
+      return newRecommendation;
+    } catch (error) {
+      console.error("Error creating room recommendation:", error);
+      throw error;
     }
   }
 }
