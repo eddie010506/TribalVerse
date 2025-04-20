@@ -1851,16 +1851,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valid conversation history is required" });
       }
       
+      // Log the conversation history to help with debugging
+      console.log("Analyzing conversation with", conversationHistory.length, "messages");
+      
+      // If conversation is too short, create a default response
+      if (conversationHistory.length < 2) {
+        console.log("Conversation too short, using default values");
+        return res.json({
+          hobbies: "Based on our short conversation, I couldn't identify specific hobbies yet.",
+          interests: "Not enough information to determine interests. Please continue the conversation for better results.",
+          currentActivities: "No specific activities identified from our brief conversation.",
+          favoriteFood: "Not specified yet."
+        });
+      }
+      
+      // Attempt to analyze the conversation
       const profileData = await analyzeProfileSetupConversation(conversationHistory);
       
       if (!profileData) {
-        return res.status(422).json({ message: "Failed to extract profile data from conversation" });
+        console.error("AI analysis returned null");
+        // Return a fallback response instead of an error
+        return res.json({
+          hobbies: "Unable to analyze hobbies from our conversation. You can update this manually.",
+          interests: "Unable to determine interests from our conversation. You can update this manually.",
+          currentActivities: "No specific activities identified from our conversation. You can update this manually.",
+          favoriteFood: "Not specified from our conversation. You can update this manually."
+        });
       }
       
+      // Successfully analyzed profile data
+      console.log("Successfully analyzed profile data:", profileData);
       res.json(profileData);
     } catch (error) {
       console.error("Error analyzing profile setup conversation:", error);
-      res.status(500).json({ message: "Failed to analyze profile setup conversation" });
+      // Instead of returning an error, return usable fallback data
+      res.json({
+        hobbies: "An error occurred while analyzing our conversation. Please update your profile manually.",
+        interests: "An error occurred while analyzing our conversation. Please update your profile manually.",
+        currentActivities: "An error occurred while analyzing our conversation. Please update your profile manually.",
+        favoriteFood: "An error occurred while analyzing our conversation. Please update your profile manually."
+      });
     }
   });
   

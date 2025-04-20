@@ -222,27 +222,115 @@ For each category, provide 1-3 sentences that capture the essence of what I've s
 
     const aiResponse = response.content[0].text;
     
-    // Process the AI response to extract the sections - using simpler regex to avoid incompatibility
-    const hobbiesSectionRegex = /(Hobbies|1\.?)\s+([\s\S]*?)(Interests|2\.?)/i;
-    const interestsSectionRegex = /(Interests|2\.?)\s+([\s\S]*?)(Current Activities|3\.?)/i;
-    const activitiesSectionRegex = /(Current Activities|3\.?)\s+([\s\S]*?)(Favorite Food|4\.?|$|\n\n)/i;
-    const favoriteFoodRegex = /(Favorite Food|4\.?)\s+([\s\S]*?)($|\n\n)/i;
+    console.log('Analyzing AI response:', aiResponse);
     
-    const hobbiesMatch = hobbiesSectionRegex.exec(aiResponse);
-    const interestsMatch = interestsSectionRegex.exec(aiResponse);
-    const activitiesMatch = activitiesSectionRegex.exec(aiResponse);
-    const favoriteFoodMatch = favoriteFoodRegex.exec(aiResponse);
+    // Create a fallback mechanism in case the AI doesn't format the response correctly
+    let hobbies = "Not specified";
+    let interests = "Not specified";
+    let currentActivities = "Not specified";
+    let favoriteFood = "Not specified";
     
-    if (hobbiesMatch && interestsMatch && activitiesMatch) {
+    // Try to extract each section with multiple fallback patterns
+    try {
+      // Hobbies section extraction
+      const hobbiesPatterns = [
+        /(Hobbies|1\.?)\s*:?\s*([\s\S]*?)(?=(Interests|2\.?|$))/i,
+        /(?:^|\n)(?:Hobbies|1\.?)[\s:]*([^\n]+)/i
+      ];
+      
+      for (const pattern of hobbiesPatterns) {
+        const match = pattern.exec(aiResponse);
+        if (match && match.length > 1) {
+          const extractedText = match[match.length-1].trim();
+          if (extractedText && extractedText.length > 5) {
+            hobbies = extractedText;
+            break;
+          }
+        }
+      }
+      
+      // Interests section extraction
+      const interestsPatterns = [
+        /(Interests|2\.?)\s*:?\s*([\s\S]*?)(?=(Current Activities|3\.?|$))/i,
+        /(?:^|\n)(?:Interests|2\.?)[\s:]*([^\n]+)/i
+      ];
+      
+      for (const pattern of interestsPatterns) {
+        const match = pattern.exec(aiResponse);
+        if (match && match.length > 1) {
+          const extractedText = match[match.length-1].trim();
+          if (extractedText && extractedText.length > 5) {
+            interests = extractedText;
+            break;
+          }
+        }
+      }
+      
+      // Current Activities section extraction
+      const activitiesPatterns = [
+        /(Current Activities|3\.?)\s*:?\s*([\s\S]*?)(?=(Favorite Food|4\.?|$))/i,
+        /(?:^|\n)(?:Current Activities|3\.?)[\s:]*([^\n]+)/i
+      ];
+      
+      for (const pattern of activitiesPatterns) {
+        const match = pattern.exec(aiResponse);
+        if (match && match.length > 1) {
+          const extractedText = match[match.length-1].trim();
+          if (extractedText && extractedText.length > 5) {
+            currentActivities = extractedText;
+            break;
+          }
+        }
+      }
+      
+      // Favorite Food section extraction
+      const foodPatterns = [
+        /(Favorite Food|4\.?)\s*:?\s*([\s\S]*?)(?=$)/i,
+        /(?:^|\n)(?:Favorite Food|4\.?)[\s:]*([^\n]+)/i
+      ];
+      
+      for (const pattern of foodPatterns) {
+        const match = pattern.exec(aiResponse);
+        if (match && match.length > 1) {
+          const extractedText = match[match.length-1].trim();
+          if (extractedText && extractedText.length > 2) {
+            favoriteFood = extractedText;
+            break;
+          }
+        }
+      }
+      
+      // If we couldn't find favorite food but we find the word "food" in the response
+      if (favoriteFood === "Not specified" && aiResponse.toLowerCase().includes("food")) {
+        const foodKeywords = ["like to eat", "favorite food", "enjoy eating", "foods I like", "cuisine", "dish", "meal"];
+        for (const keyword of foodKeywords) {
+          if (aiResponse.toLowerCase().includes(keyword)) {
+            const index = aiResponse.toLowerCase().indexOf(keyword);
+            const snippet = aiResponse.substring(index, index + 100);
+            favoriteFood = snippet.split('.')[0].trim() + '.';
+            break;
+          }
+        }
+      }
+      
+      console.log('Extracted profile data:', { hobbies, interests, currentActivities, favoriteFood });
+      
       return {
-        hobbies: hobbiesMatch[2].trim(),
-        interests: interestsMatch[2].trim(),
-        currentActivities: activitiesMatch[2].trim(),
-        favoriteFood: favoriteFoodMatch ? favoriteFoodMatch[2].trim() : null
+        hobbies,
+        interests,
+        currentActivities,
+        favoriteFood
       };
-    } else {
-      console.error('Failed to extract profile sections from AI response');
-      return null;
+    } catch (error) {
+      console.error('Error during regex extraction:', error);
+      
+      // Provide basic fallback values if all else fails
+      return {
+        hobbies: "Not specified. Please update manually.",
+        interests: "Not specified. Please update manually.",
+        currentActivities: "Not specified. Please update manually.",
+        favoriteFood: "Not specified. Please update manually."
+      };
     }
   } catch (error) {
     console.error('Error analyzing profile setup conversation:', error);
