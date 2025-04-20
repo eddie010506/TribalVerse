@@ -35,10 +35,13 @@ function ProfileCheckRouter() {
       location !== '/auth' && 
       location !== '/profile'
     ) {
-      // Check if profile setup has been completed already in this session
-      const completedSetup = localStorage.getItem('profileSetupCompleted');
-      if (completedSetup === 'true') {
-        return; // Don't show profile setup if it's already been completed
+      // Only check for session completion if the user is not a demo account
+      // For demo accounts we'll handle this specifically below
+      if (!user.username.includes('demovideo')) {
+        const completedSetup = localStorage.getItem('profileSetupCompleted');
+        if (completedSetup === 'true') {
+          return; // Don't show profile setup if it's already been completed
+        }
       }
       
       // For demo accounts, check more carefully
