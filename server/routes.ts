@@ -881,9 +881,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat rooms API
   app.get("/api/rooms", isAuthenticated, async (req, res) => {
     try {
-      const rooms = await storage.getChatRooms();
-      res.json(rooms);
+      const userId = req.user!.id;
+      
+      // Get rooms created by the user
+      const userCreatedRooms = await storage.getChatRoomsByCreatorId(userId);
+      
+      // Get rooms the user has been invited to and accepted
+      const acceptedInvitationRooms = await storage.getRoomsUserHasAccessTo(userId);
+      
+      // Combine the lists, ensuring no duplicates
+      const allRoomIds = new Set();
+      const allRooms = [];
+      
+      // Add user created rooms first
+      for (const room of userCreatedRooms) {
+        allRoomIds.add(room.id);
+        allRooms.push(room);
+      }
+      
+      // Add invitation rooms if not already included
+      for (const room of acceptedInvitationRooms) {
+        if (!allRoomIds.has(room.id)) {
+          allRoomIds.add(room.id);
+          allRooms.push(room);
+        }
+      }
+      
+      res.json(allRooms);
     } catch (error) {
+      console.error("Error fetching chat rooms:", error);
       res.status(500).json({ message: "Failed to fetch chat rooms" });
     }
   });
@@ -946,6 +972,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/rooms/:id", isAuthenticated, async (req, res) => {
     try {
       const roomId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
       if (isNaN(roomId)) {
         return res.status(400).json({ message: "Invalid room ID" });
       }
@@ -955,8 +983,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Room not found" });
       }
       
+      // Check if user has access to this room
+      // 1. User is the creator
+      if (room.creatorId === userId) {
+        return res.json(room);
+      }
+      
+      // 2. Room is a self-chat - only accessible by creator
+      if (room.isSelfChat) {
+        return res.status(403).json({ message: "You do not have permission to access this room" });
+      }
+      
+      // 3. User has an accepted invitation
+      const invitations = await storage.getReceivedRoomInvitations(userId);
+      const hasAcceptedInvitation = invitations.some(
+        inv => inv.roomId === roomId && inv.status === 'accepted'
+      );
+      
+      if (!hasAcceptedInvitation) {
+        return res.status(403).json({ message: "You do not have permission to access this room" });
+      }
+      
       res.json(room);
     } catch (error) {
+      console.error("Error fetching room:", error);
       res.status(500).json({ message: "Failed to fetch room" });
     }
   });
@@ -999,13 +1049,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/rooms/:id/messages", isAuthenticated, async (req, res) => {
     try {
       const roomId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
       if (isNaN(roomId)) {
         return res.status(400).json({ message: "Invalid room ID" });
+      }
+      
+      // Check if room exists
+      const room = await storage.getChatRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      
+      // Check if user has access to this room
+      // 1. User is the creator
+      if (room.creatorId !== userId) {
+        // 2. Room is a self-chat - only accessible by creator
+        if (room.isSelfChat) {
+          return res.status(403).json({ message: "You do not have permission to access this room" });
+        }
+        
+        // 3. User has an accepted invitation
+        const invitations = await storage.getReceivedRoomInvitations(userId);
+        const hasAcceptedInvitation = invitations.some(
+          inv => inv.roomId === roomId && inv.status === 'accepted'
+        );
+        
+        if (!hasAcceptedInvitation) {
+          return res.status(403).json({ message: "You do not have permission to access this room" });
+        }
       }
       
       const messages = await storage.getMessagesByRoomId(roomId);
       res.json(messages);
     } catch (error) {
+      console.error("Error fetching room messages:", error);
       res.status(500).json({ message: "Failed to fetch messages" });
     }
   });

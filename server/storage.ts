@@ -28,6 +28,8 @@ export interface IStorage {
   
   // Chat room methods
   getChatRooms(): Promise<ChatRoom[]>;
+  getChatRoomsByCreatorId(creatorId: number): Promise<ChatRoom[]>;
+  getRoomsUserHasAccessTo(userId: number): Promise<ChatRoom[]>;
   getChatRoom(id: number): Promise<ChatRoom | undefined>;
   createChatRoom(room: InsertChatRoom): Promise<ChatRoom>;
   deleteChatRoom(id: number, userId: number): Promise<boolean>;
@@ -268,6 +270,55 @@ export class DatabaseStorage implements IStorage {
   // Chat room methods
   async getChatRooms(): Promise<ChatRoom[]> {
     return await db.select().from(chatRooms);
+  }
+  
+  async getChatRoomsByCreatorId(creatorId: number): Promise<ChatRoom[]> {
+    return await db
+      .select()
+      .from(chatRooms)
+      .where(eq(chatRooms.creatorId, creatorId));
+  }
+  
+  async getRoomsUserHasAccessTo(userId: number): Promise<ChatRoom[]> {
+    try {
+      // Find all accepted room invitations for this user
+      const acceptedInvitations = await db
+        .select()
+        .from(roomInvitations)
+        .where(
+          and(
+            eq(roomInvitations.receiverId, userId),
+            eq(roomInvitations.status, 'accepted')
+          )
+        );
+      
+      // No invitations means no rooms to access
+      if (acceptedInvitations.length === 0) {
+        return [];
+      }
+      
+      // Get the room IDs
+      const roomIds = acceptedInvitations.map(invitation => invitation.roomId);
+      
+      // Get the rooms using straight SQL since we need to use IN clause
+      const result = await pool.query(`
+        SELECT * FROM chat_rooms
+        WHERE id = ANY($1)
+      `, [roomIds]);
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        creatorId: row.creator_id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        isSelfChat: row.is_self_chat
+      }));
+    } catch (error) {
+      console.error("Error getting rooms user has access to:", error);
+      return [];
+    }
   }
 
   async getChatRoom(id: number): Promise<ChatRoom | undefined> {

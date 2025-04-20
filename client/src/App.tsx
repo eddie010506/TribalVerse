@@ -35,15 +35,42 @@ function ProfileCheckRouter() {
       location !== '/profile' && 
       !isProfileComplete()
     ) {
-      // Only show the profile setup dialog if user is authenticated and profile is incomplete
+      // Check if we've shown the dialog recently and user chose to skip
+      const lastSkippedTime = localStorage.getItem('profileSetupSkippedAt');
+      
+      if (lastSkippedTime) {
+        // If it was skipped less than 24 hours ago, don't show again
+        const skippedTimestamp = parseInt(lastSkippedTime, 10);
+        const currentTime = Date.now();
+        const hoursSinceSkipped = (currentTime - skippedTimestamp) / (1000 * 60 * 60);
+        
+        if (hoursSinceSkipped < 24) {
+          // It's been less than 24 hours since the user skipped
+          return;
+        }
+      }
+      
+      // Only show the profile setup dialog if user is authenticated, profile is incomplete,
+      // and hasn't been skipped in the last 24 hours
       setShowProfileSetup(true);
     }
   }, [user, isLoading, location, isProfileComplete]);
 
+  // Handle dialog close with a reason (completed or skipped)
+  const handleDialogChange = (open: boolean) => {
+    if (!open) {
+      // If dialog is closing and profile is still not complete, record as skipped
+      if (!isProfileComplete()) {
+        localStorage.setItem('profileSetupSkippedAt', Date.now().toString());
+      }
+      setShowProfileSetup(false);
+    }
+  };
+
   return (
     <>
       {/* Profile setup dialog - shown for first-time users */}
-      <ProfileSetupDialog open={showProfileSetup} onOpenChange={setShowProfileSetup} />
+      <ProfileSetupDialog open={showProfileSetup} onOpenChange={handleDialogChange} />
       
       <Switch>
         <ProtectedRoute path="/" component={PostsPage} />
