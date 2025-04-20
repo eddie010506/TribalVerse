@@ -16,13 +16,15 @@ const PROFILE_SETUP_INSTRUCTION = `You are a helpful AI assistant designed to he
 
 Ask questions one at a time, be conversational, and listen to their responses. Don't overwhelm them with too many questions at once.
 
-During the conversation, you MUST specifically ask these questions (one at a time):
+During the conversation, you MUST specifically ask these questions (one at a time) in this exact order:
 1. Ask about their hobbies and what they enjoy doing in their free time
 2. Ask about their main interests or what topics fascinate them
 3. Ask about their current activities or projects they're working on
-4. IMPORTANT: Always ask "What are your favorite foods or cuisines?" as a standalone question
+4. EXTREMELY IMPORTANT: You MUST ask directly "What are your favorite foods or cuisines?" as a standalone question. This must be asked as a separate question. DO NOT combine this with other questions.
 
-After gathering information, ask if they're ready to create their profile. Then suggest a concise summary of their hobbies, interests, current activities, and favorite foods that they can use for their profile. Make sure to include ALL FOUR CATEGORIES in your summary. Label each section clearly. The summary for each category should be 1-3 sentences maximum and highlight key points.`;
+After gathering information, ask if they're ready to create their profile. Then suggest a concise summary of their hobbies, interests, current activities, and favorite foods that they can use for their profile. Make sure to include ALL FOUR CATEGORIES in your summary. Label each section clearly. The summary for each category should be 1-3 sentences maximum and highlight key points.
+
+REMINDER: Do not proceed to the profile summary until you have explicitly asked about favorite foods as a standalone question and received a response.`;
 
 /**
  * Sends a message to Claude AI and gets a response
@@ -223,7 +225,7 @@ For each category, provide 1-3 sentences that capture the essence of what I've s
       model: 'claude-3-7-sonnet-20250219',
       max_tokens: 1024,
       messages,
-      system: "You are a profile analysis assistant. Extract the user's hobbies, interests, current activities, and favorite foods from the conversation. Format your response with numbered sections (1. Hobbies, 2. Interests, 3. Current Activities, 4. Favorite Food). All four categories are required. The favorite food section is critical - if user mentioned any foods, include them."
+      system: "You are a profile analysis assistant. Extract the user's hobbies, interests, current activities, and favorite foods from the conversation. Format your response with EXACTLY these numbered sections (1. Hobbies, 2. Interests, 3. Current Activities, 4. Favorite Food). ALL FOUR CATEGORIES ARE REQUIRED - do not skip any. The favorite food section (#4) is EXTREMELY IMPORTANT - if the user mentioned ANY foods or cuisines, include them in section 4. If the user has not mentioned favorite foods yet, respond with 'Information incomplete: Please ask the user about their favorite foods before proceeding.' Do not make up information."
     });
 
     if (!response.content || response.content.length === 0) {
@@ -293,10 +295,12 @@ For each category, provide 1-3 sentences that capture the essence of what I've s
         }
       }
       
-      // Favorite Food section extraction
+      // Favorite Food section extraction - higher priority than other sections
       const foodPatterns = [
         /(Favorite Food|4\.?)\s*:?\s*([\s\S]*?)(?=$)/i,
-        /(?:^|\n)(?:Favorite Food|4\.?)[\s:]*([^\n]+)/i
+        /(?:^|\n)(?:Favorite Food|4\.?)[\s:]*([^\n]+)/i,
+        /(Favorite Food|Food preferences|Cuisine preferences):\s*([\s\S]*?)(?=\n\n|\n[A-Z0-9]|$)/i,
+        /4\.\s*([\s\S]*?)(?=\n\n|\n[A-Z0-9]|$)/i,
       ];
       
       for (const pattern of foodPatterns) {
@@ -305,20 +309,41 @@ For each category, provide 1-3 sentences that capture the essence of what I've s
           const extractedText = match[match.length-1].trim();
           if (extractedText && extractedText.length > 2) {
             favoriteFood = extractedText;
+            console.log('Food extraction matched with pattern:', pattern);
+            console.log('Extracted food text:', extractedText);
             break;
           }
         }
       }
       
       // If we couldn't find favorite food but we find the word "food" in the response
-      if (favoriteFood === "Not specified" && aiResponse.toLowerCase().includes("food")) {
-        const foodKeywords = ["like to eat", "favorite food", "enjoy eating", "foods I like", "cuisine", "dish", "meal"];
-        for (const keyword of foodKeywords) {
-          if (aiResponse.toLowerCase().includes(keyword)) {
-            const index = aiResponse.toLowerCase().indexOf(keyword);
-            const snippet = aiResponse.substring(index, index + 100);
-            favoriteFood = snippet.split('.')[0].trim() + '.';
+      if (favoriteFood === "Not specified") {
+        // Look for food-related discussions in the original conversation
+        for (const message of conversationHistory) {
+          if (message.role === 'user' && 
+              (message.content.toLowerCase().includes('food') || 
+               message.content.toLowerCase().includes('eat') ||
+               message.content.toLowerCase().includes('cuisine') || 
+               message.content.toLowerCase().includes('dish'))) {
+            favoriteFood = message.content;
+            console.log('Food extraction found in user message:', favoriteFood);
             break;
+          }
+        }
+        
+        // Still not found, try keywords in the AI response
+        if (favoriteFood === "Not specified" && aiResponse.toLowerCase().includes("food")) {
+          const foodKeywords = ["like to eat", "favorite food", "enjoy eating", "foods I like", "cuisine", "dish", "meal", "restaurant", "taste", "flavor", "delicious"];
+          for (const keyword of foodKeywords) {
+            if (aiResponse.toLowerCase().includes(keyword)) {
+              const index = aiResponse.toLowerCase().indexOf(keyword);
+              // Extract a larger snippet to get the full context
+              const snippet = aiResponse.substring(Math.max(0, index - 50), Math.min(aiResponse.length, index + 150));
+              favoriteFood = snippet.split(/\.|\n/)[0].trim() + '.';
+              console.log('Food extraction matched with keyword:', keyword);
+              console.log('Extracted food text from context:', favoriteFood);
+              break;
+            }
           }
         }
       }
