@@ -35,33 +35,36 @@ function ProfileCheckRouter() {
       location !== '/auth' && 
       location !== '/profile'
     ) {
-      // Only check for session completion if the user is not a demo account
-      // For demo accounts we'll handle this specifically below
-      if (!user.username.includes('demovideo')) {
-        const completedSetup = localStorage.getItem('profileSetupCompleted');
-        if (completedSetup === 'true') {
-          return; // Don't show profile setup if it's already been completed
-        }
-      }
+      console.log("Checking profile completeness for:", user.username);
       
-      // For demo accounts, check more carefully
-      const isDemoAccount = user.username === 'demovideo' || user.username === 'demovideos' || 
-                          user.username === 'demovideo1' || user.username === 'demovideo2';
+      // Check if profile is incomplete
+      const profileIncomplete = !isProfileComplete();
+      console.log("Profile is incomplete:", profileIncomplete);
+      
+      // For testing: clear localStorage to force dialog to appear
+      // Uncomment the next line if you want to reset the profile setup state
+      // localStorage.removeItem('profileSetupCompleted');
+      
+      // For demo accounts, always show the dialog if profile is incomplete
+      const isDemoAccount = user.username.includes('demovideo');
       
       if (isDemoAccount) {
-        // For demo accounts, check if they've already completed setup in this session
-        const demoCompleted = localStorage.getItem('profileSetupCompleted');
-        if (demoCompleted === 'true') {
-          return; // Don't show if completed
+        if (profileIncomplete) {
+          console.log("Demo account with incomplete profile - showing setup dialog");
+          setShowProfileSetup(true);
+          return;
         }
-        
-        // Otherwise show the profile setup
-        setShowProfileSetup(true);
-        return;
       }
       
-      // For regular users, check if profile is incomplete
-      if (!isProfileComplete()) {
+      // For all users, check if profile is incomplete
+      if (profileIncomplete) {
+        // Check if we've completed the setup in this session
+        const completedSetup = localStorage.getItem('profileSetupCompleted');
+        if (completedSetup === 'true') {
+          console.log("Profile setup was already completed in this session");
+          return;
+        }
+        
         // Check if we've shown the dialog recently and user chose to skip
         const lastSkippedTime = localStorage.getItem('profileSetupSkippedAt');
         
@@ -72,12 +75,13 @@ function ProfileCheckRouter() {
           const hoursSinceSkipped = (currentTime - skippedTimestamp) / (1000 * 60 * 60);
           
           if (hoursSinceSkipped < 24) {
-            // It's been less than 24 hours since the user skipped
+            console.log("Dialog was skipped less than 24 hours ago - not showing");
             return;
           }
         }
         
         // Show the profile setup dialog
+        console.log("Showing profile setup dialog");
         setShowProfileSetup(true);
       }
     }

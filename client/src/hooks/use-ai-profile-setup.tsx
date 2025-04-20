@@ -196,8 +196,18 @@ export function useAIProfileSetup() {
     const hasHobbies = !!user.hobbies;
     const hasInterests = !!user.interests;
     const hasActivities = !!user.currentActivities;
+    const hasFavoriteFood = !!user.favoriteFood;
     
-    return hasHobbies && hasInterests && hasActivities;
+    // For debugging
+    console.log("Profile completeness check:", { 
+      hasHobbies, hasInterests, hasActivities, hasFavoriteFood,
+      hobbies: user.hobbies,
+      interests: user.interests,
+      activities: user.currentActivities,
+      favoriteFood: user.favoriteFood
+    });
+    
+    return hasHobbies && hasInterests && hasActivities && hasFavoriteFood;
   }, [user]);
 
   return {
