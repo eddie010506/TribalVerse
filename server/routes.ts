@@ -918,18 +918,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Check if this is a self-chat room
       const isSelfChat = Boolean(req.body.isSelfChat);
+      const isPublic = Boolean(req.body.isPublic);
+      
+      // A room cannot be both self-chat and public
+      if (isSelfChat && isPublic) {
+        return res.status(400).json({ message: "A room cannot be both self-chat and public" });
+      }
+      
+      // Parse category and tags for public rooms
+      let category = req.body.category || null;
+      let tags = req.body.tags || null;
+      
+      // Validate category and tags for public rooms
+      if (isPublic) {
+        if (!category) {
+          return res.status(400).json({ message: "Public rooms require a category" });
+        }
+        
+        // Normalize category (lowercase, trim)
+        category = category.trim().toLowerCase();
+        
+        // Validate tags if provided
+        if (tags) {
+          // Convert comma-separated tags to normalized format
+          if (typeof tags === 'string') {
+            tags = tags.split(',')
+              .map((tag: string) => tag.trim().toLowerCase())
+              .filter((tag: string) => tag.length > 0)
+              .join(',');
+          }
+        }
+      }
       
       const validatedData = insertChatRoomSchema.parse({
         ...req.body,
         creatorId: req.user!.id,
-        isSelfChat: isSelfChat
+        isSelfChat: isSelfChat,
+        isPublic: isPublic,
+        category: category,
+        tags: tags
       });
       
       const room = await storage.createChatRoom(validatedData);
       
-      // For self-chat rooms, we don't need to send invitations
-      // If invitees were provided and not a self-chat, send invitations
-      if (!isSelfChat && req.body.invitees && Array.isArray(req.body.invitees)) {
+      // Handle invitations for private rooms
+      if (!isSelfChat && !isPublic && req.body.invitees && Array.isArray(req.body.invitees)) {
         const senderId = req.user!.id;
         const roomId = room.id;
         
@@ -963,8 +996,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // For public rooms, generate AI-based recommendations for similar users
+      if (isPublic) {
+        try {
+          // Get user profile for matching
+          const creator = await storage.getUser(req.user!.id);
+          
+          // Only proceed if we have sufficient profile data
+          if (creator && (creator.interests || creator.hobbies || creator.currentActivities)) {
+            // Schedule this to run in the background so we don't block room creation
+            setTimeout(async () => {
+              try {
+                // Get users with similar interests based on user profile and room details
+                const allUsers = await storage.getAllUsersExcept(req.user!.id);
+                
+                // Combine room details and creator profile for better matching
+                const userInterests = creator.interests || '';
+                const userHobbies = creator.hobbies || '';
+                const userActivities = creator.currentActivities || '';
+                const roomName = room.name;
+                const roomDescription = room.description || '';
+                const roomCategory = room.category || '';
+                const roomTags = room.tags || '';
+                
+                // Get up to 10 users who might be interested in this room
+                const potentialUsers = allUsers.slice(0, 10);
+                
+                // Generate room recommendations for these users
+                for (const user of potentialUsers) {
+                  // Skip users without interests
+                  if (!user.interests && !user.hobbies && !user.currentActivities) continue;
+                  
+                  // Compare interests and generate a match reason
+                  const userProfile = {
+                    interests: user.interests || '',
+                    hobbies: user.hobbies || '',
+                    activities: user.currentActivities || ''
+                  };
+                  
+                  const roomProfile = {
+                    name: roomName,
+                    description: roomDescription,
+                    category: roomCategory,
+                    tags: roomTags
+                  };
+                  
+                  let matchReason = '';
+                  
+                  // Simple matching logic - will be improved with AI in the future
+                  if (userProfile.interests.toLowerCase().includes(roomCategory.toLowerCase())) {
+                    matchReason = `This room's topic matches your interests`;
+                  } else if (userProfile.hobbies.toLowerCase().includes(roomCategory.toLowerCase())) {
+                    matchReason = `This room involves one of your hobbies`;
+                  } else if (roomTags && roomTags.split(',').some(tag => 
+                    userProfile.interests.toLowerCase().includes(tag.toLowerCase()) || 
+                    userProfile.hobbies.toLowerCase().includes(tag.toLowerCase())
+                  )) {
+                    matchReason = `This room has tags related to your interests`;
+                  } else {
+                    matchReason = `You might find this room interesting`;
+                  }
+                  
+                  // Create recommendation with expiration (24h from now)
+                  const expiresAt = new Date();
+                  expiresAt.setHours(expiresAt.getHours() + 24);
+                  
+                  await storage.createUserRecommendation({
+                    userId: user.id,
+                    roomId: room.id,
+                    matchReason,
+                    expiresAt
+                  });
+                }
+              } catch (error) {
+                console.error("Error generating room recommendations:", error);
+              }
+            }, 100); // Small delay to not block response
+          }
+        } catch (error) {
+          console.error("Error setting up room recommendations:", error);
+          // Don't fail room creation if recommendation generation fails
+        }
+      }
+      
       res.status(201).json(room);
     } catch (error) {
+      console.error("Error creating room:", error);
       res.status(400).json({ message: "Invalid room data" });
     }
   });
@@ -994,7 +1111,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You do not have permission to access this room" });
       }
       
-      // 3. User has an accepted invitation
+      // 3. Room is public and user is a member
+      if (room.isPublic) {
+        const isMember = await storage.isRoomMember(userId, roomId);
+        if (!isMember) {
+          return res.status(403).json({ 
+            message: "You need to join this public room first",
+            isPublic: true
+          });
+        }
+        return res.json(room);
+      }
+      
+      // 4. User has an accepted invitation for a private room
       const invitations = await storage.getReceivedRoomInvitations(userId);
       const hasAcceptedInvitation = invitations.some(
         inv => inv.roomId === roomId && inv.status === 'accepted'
