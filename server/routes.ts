@@ -2030,5 +2030,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public chat rooms API
+  app.get("/api/public-rooms", isAuthenticated, async (req, res) => {
+    try {
+      // Get all public chat rooms
+      const publicRooms = await storage.getPublicChatRooms();
+      
+      // Get the user's joined rooms to mark which ones they're already in
+      const userId = req.user!.id;
+      const userMemberships = await storage.getRoomMembershipsForUser(userId);
+      const userRoomIds = new Set(userMemberships.map(m => m.roomId));
+      
+      // Add a 'isMember' property to each room
+      const roomsWithMemberStatus = publicRooms.map(room => ({
+        ...room,
+        isMember: room.creatorId === userId || userRoomIds.has(room.id)
+      }));
+      
+      res.json(roomsWithMemberStatus);
+    } catch (error) {
+      console.error("Error fetching public chat rooms:", error);
+      res.status(500).json({ message: "Failed to fetch public chat rooms" });
+    }
+  });
+  
+  // Get AI room recommendations
+  app.get("/api/public-rooms/recommendations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Check if user has a complete profile for better recommendations
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if user has interests, hobbies, or activities defined
+      const hasProfile = Boolean(user.interests || user.hobbies || user.currentActivities);
+      
+      // Get recommended public rooms for this user
+      const recommendations = await storage.getRoomRecommendations(userId);
+      
+      // Get detailed room info for each recommendation
+      const detailedRecommendations = await Promise.all(
+        recommendations.map(async (rec) => {
+          const room = await storage.getChatRoom(rec.roomId);
+          if (!room) return null;
+          
+          return {
+            ...room,
+            matchReason: rec.matchReason
+          };
+        })
+      );
+      
+      // Filter out null values (in case a room was deleted)
+      const validRecommendations = detailedRecommendations.filter(r => r !== null);
+      
+      res.json({
+        rooms: validRecommendations,
+        isProfileComplete: hasProfile,
+        message: hasProfile ? 
+          "Here are some rooms that match your interests" : 
+          "Complete your profile to get better recommendations"
+      });
+    } catch (error) {
+      console.error("Error fetching room recommendations:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch room recommendations", 
+        rooms: [] 
+      });
+    }
+  });
+  
+  // Join a public room
+  app.post("/api/public-rooms/:id/join", isAuthenticated, isEmailVerified, async (req, res) => {
+    try {
+      const roomId = parseInt(req.params.id);
+      if (isNaN(roomId)) {
+        return res.status(400).json({ message: "Invalid room ID" });
+      }
+      
+      const userId = req.user!.id;
+      
+      // Check if room exists and is public
+      const room = await storage.getChatRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      
+      if (!room.isPublic) {
+        return res.status(403).json({ message: "This room is not public" });
+      }
+      
+      // Check if user is already a member
+      const isMember = await storage.isRoomMember(userId, roomId);
+      if (isMember) {
+        return res.status(400).json({ message: "You are already a member of this room" });
+      }
+      
+      // Join the room
+      const membership = await storage.joinPublicRoom(userId, roomId);
+      if (!membership) {
+        return res.status(500).json({ message: "Failed to join room" });
+      }
+      
+      // Create notification for room creator
+      if (room.creatorId !== userId) {
+        const user = await storage.getUser(userId);
+        await storage.createNotification({
+          userId: room.creatorId,
+          type: 'room_join',
+          actorId: userId,
+          entityId: roomId,
+          entityType: 'chat_room',
+          message: `${user?.username || 'Someone'} joined your room "${room.name}"`,
+          isRead: false,
+        });
+      }
+      
+      res.status(200).json({ message: "Successfully joined room", roomId, membership });
+    } catch (error) {
+      console.error("Error joining public room:", error);
+      res.status(500).json({ message: "Failed to join room" });
+    }
+  });
+  
+  // Leave a room
+  app.post("/api/rooms/:id/leave", isAuthenticated, async (req, res) => {
+    try {
+      const roomId = parseInt(req.params.id);
+      if (isNaN(roomId)) {
+        return res.status(400).json({ message: "Invalid room ID" });
+      }
+      
+      const userId = req.user!.id;
+      
+      // Check if room exists
+      const room = await storage.getChatRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      
+      // Creator cannot leave their own room
+      if (room.creatorId === userId) {
+        return res.status(400).json({ message: "You cannot leave a room you created" });
+      }
+      
+      // Check if user is a member
+      const isMember = await storage.isRoomMember(userId, roomId);
+      if (!isMember) {
+        return res.status(400).json({ message: "You are not a member of this room" });
+      }
+      
+      // Leave the room
+      const success = await storage.leaveRoom(userId, roomId);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to leave room" });
+      }
+      
+      res.status(200).json({ message: "Successfully left room" });
+    } catch (error) {
+      console.error("Error leaving room:", error);
+      res.status(500).json({ message: "Failed to leave room" });
+    }
+  });
+  
+  // Get room members
+  app.get("/api/rooms/:id/members", isAuthenticated, async (req, res) => {
+    try {
+      const roomId = parseInt(req.params.id);
+      if (isNaN(roomId)) {
+        return res.status(400).json({ message: "Invalid room ID" });
+      }
+      
+      const userId = req.user!.id;
+      
+      // Check if room exists
+      const room = await storage.getChatRoom(roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      
+      // Check if user has access to this room
+      const hasAccess = await storage.isRoomMember(userId, roomId);
+      if (!hasAccess && !room.isPublic) {
+        return res.status(403).json({ message: "You do not have permission to access this room" });
+      }
+      
+      // Get room members
+      const members = await storage.getRoomMembers(roomId);
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching room members:", error);
+      res.status(500).json({ message: "Failed to fetch room members" });
+    }
+  });
+
   return httpServer;
 }
