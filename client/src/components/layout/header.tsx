@@ -25,7 +25,8 @@ export function Header() {
   // Navigation items for the hamburger menu
   const navigationItems = user ? [
     { href: "/", icon: <FileText className="h-5 w-5 mr-3" />, label: "Posts", active: location === "/" },
-    { href: "/chat", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Chat Rooms", active: location === "/chat" },
+    { href: "/chat", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Tribal Room", active: location === "/chat" },
+    { href: "/public-rooms", icon: <MessageSquare className="h-5 w-5 mr-3" />, label: "Tribal Grounds", active: location === "/public-rooms" },
     { href: "/profile", icon: <User className="h-5 w-5 mr-3" />, label: "Profile", active: location === "/profile" },
   ] : [];
 
@@ -89,7 +90,13 @@ export function Header() {
                 <Link href="/chat">
                   <div className="flex items-center text-sm text-neutral-600 cursor-pointer hover:text-primary">
                     <MessageSquare className="h-4 w-4 mr-1" />
-                    <span className="font-medium">Chat Rooms</span>
+                    <span className="font-medium">Tribal Room</span>
+                  </div>
+                </Link>
+                <Link href="/public-rooms">
+                  <div className="flex items-center text-sm text-neutral-600 cursor-pointer hover:text-primary">
+                    <MessageSquare className="h-4 w-4 mr-1" />
+                    <span className="font-medium">Tribal Grounds</span>
                   </div>
                 </Link>
                 <Link href="/profile">

@@ -165,6 +165,7 @@ export default function ChatRoomPage() {
               <div>
                 <h2 className="text-lg font-semibold">{room?.name || 'Loading...'}</h2>
                 <p className="text-sm text-gray-500">{room?.description || ''}</p>
+                <p className="text-xs text-gray-400">Tribal Room</p>
               </div>
             </div>
             
@@ -181,7 +182,7 @@ export default function ChatRoomPage() {
               
               {/* Invite users button (shown to all users) */}
               {room && !room.isSelfChat && (
-                <InviteUsersDialog roomId={roomId} roomName={room?.name || "Chat Room"} />
+                <InviteUsersDialog roomId={roomId} roomName={room?.name || "Tribal Room"} />
               )}
               
               {/* Delete room button (only shown to room creator) */}
